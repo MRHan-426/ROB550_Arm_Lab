@@ -26,17 +26,16 @@ class StateMachine():
         self.status_message = "State: Idle"
         self.current_state = "idle"
         self.next_state = "idle"
-        self.waypoints = [
-            [-np.pi/2,       -0.5,      -0.3,            0.0,       0.0],
-            [0.75*-np.pi/2,   0.5,      0.3,      0.0,       np.pi/2],
-            [0.5*-np.pi/2,   -0.5,     -0.3,     np.pi / 2,     0.0],
-            [0.25*-np.pi/2,   0.5,     0.3,     0.0,       np.pi/2],
-            [0.0,             0.0,      0.0,         0.0,     0.0],
-            [0.25*np.pi/2,   -0.5,      -0.3,      0.0,       np.pi/2],
-            [0.5*np.pi/2,     0.5,     0.3,     np.pi / 2,     0.0],
-            [0.75*np.pi/2,   -0.5,     -0.3,     0.0,       np.pi/2],
-            [np.pi/2,         0.5,     0.3,      0.0,     0.0],
-            [0.0,             0.0,     0.0,      0.0,     0.0]]
+        self.waypoints = [[-np.pi/2,   -0.5,     -0.3,       0.0,      0.0],
+                        [0.75*-np.pi/2, 0.5,    0.3,      -np.pi/3,  np.pi/2],
+                        [0.5*-np.pi/2, -0.5,    -0.3,      np.pi/2,   0.0],
+                        [0.25*-np.pi/2, 0.5,    0.3,      -np.pi/3,  np.pi/2],
+                        [0.0,           0.0,    0.0,       0.0,      0.0],
+                        [0.25*np.pi/2, -0.5,    -0.3,       0.0,     np.pi/2],
+                        [0.5*np.pi/2,   0.5,     0.3,      -np.pi/3,  0.0],
+                        [0.75*np.pi/2, -0.5,    -0.3,       0.0,     np.pi/2],
+                        [np.pi/2,       0.5,     0.3,      -np.pi/3,  0.0],
+                        [0.0,           0.0,     0.0,       0.0,      0.0]]
 
     def set_next_state(self, state):
         """!
@@ -77,6 +76,12 @@ class StateMachine():
         if self.next_state == "manual":
             self.manual()
 
+        if self.next_state == "record":
+            self.record()
+
+        if self.next_state == "replay":
+            self.replay()
+
 
     """Functions run for each state"""
 
@@ -109,6 +114,9 @@ class StateMachine():
               Make sure you respect estop signal
         """
         self.status_message = "State: Execute - Executing motion plan"
+        for n in self.waypoints:
+            self.rxarm.set_positions(n)
+            time.sleep(1.5)
         self.next_state = "idle"
 
     def calibrate(self):
@@ -138,6 +146,32 @@ class StateMachine():
             print('Failed to initialize the rxarm')
             self.status_message = "State: Failed to initialize the rxarm!"
             time.sleep(5)
+        self.next_state = "idle"
+
+    def record(self):
+        """!
+        @brief      Record waypoints, one click to remember one point.  
+        """
+        self.status_message = "State: record current position"
+        if self.remembered_waypoint == []:
+            self.rxarm.sleep()
+            time.sleep(2)
+            self.rxarm.disable_torque()
+            self.remembered_waypoint.append(self.waypoints[0])
+        else:
+            self.remembered_waypoint.append(self.rxarm.get_positions())
+        self.next_state = "idle"
+
+    def replay(self):
+        """!
+        @brief      Replay remembered waypoints.     
+        """
+        self.status_message = "State: replay recorded positions "
+        self.rxarm.enable_torque()
+        print(self.remembered_waypoint)
+        for n in self.remembered_waypoint[1:]:
+            self.rxarm.set_positions(n)
+            time.sleep(2)
         self.next_state = "idle"
 
 class StateMachineThread(QThread):
