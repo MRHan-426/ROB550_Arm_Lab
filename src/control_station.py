@@ -230,13 +230,17 @@ class Gui(QMainWindow):
             self.ui.rdoutMousePixels.setText("(%.0f,%.0f,%.0f)" %
                                              (pt.x(), pt.y(), z))
 
-            # extrinsic_matrix = self.camera.extrinsic_matrix\
+            intrinsic_matrix = self.camera.intrinsic_matrix
 
-            intrinsic_matrix = np.array([[966.4680463529985, 0.0, 647.860390835071],
-                                        [0.0, 956.7410588471818, 383.3760954393191],
-                                        [0.0, 0.0, 1.0]])
-            t = np.array([0, -365, -1000])
-            R = np.eye(3)
+            # intrinsic_matrix = np.array([[966.4680463529985, 0.0, 647.860390835071],
+            #                             [0.0, 956.7410588471818, 383.3760954393191],
+            #                             [0.0, 0.0, 1.0]])
+            t = np.array([0, 365, 1000])
+            R = np.array([[0.999, 0.0094, -0.0426],
+                          [0.0, -0.9763,  -0.2164],
+                          [-0.0436, 0.2162, -0.9754]])
+
+
             
             u = pt.x()
             v = pt.y()
@@ -247,15 +251,14 @@ class Gui(QMainWindow):
             x_prime = (u - cx) / fx
             y_prime = (v - cy) / fy
 
-            # 2. 从归一化相机坐标到相机坐标
             X_c = z * x_prime
             Y_c = z * y_prime
             Z_c = z
             P_c = np.array([X_c, Y_c, Z_c]).reshape(3, 1)
+            t = t.reshape(3,1)
 
-            # 3. 从相机坐标到世界坐标
-            P_w = np.dot(R, P_c) + t
-
+            P_w = R @ P_c + t
+            print(P_w.shape)
             # u_normalized = (pt_x - intrinsic_matrix[0, 2]) / intrinsic_matrix[0, 0]
             # v_normalized = (pt_y - intrinsic_matrix[1, 2]) / intrinsic_matrix[1, 1]
             # camera_coords = np.array([u_normalized * z, v_normalized * z, z])

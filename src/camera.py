@@ -40,9 +40,7 @@ class Camera():
         # mouse clicks & calibration variables
         self.cameraCalibrated = False
         self.intrinsic_matrix = np.eye(3)
-
         self.extrinsic_matrix = np.eye(4)
-        
         self.last_click = np.array([0, 0])
         self.new_click = False
         self.rgb_click_points = np.zeros((5, 2), int)
