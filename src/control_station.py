@@ -236,21 +236,36 @@ class Gui(QMainWindow):
                                         [0.0, 956.7410588471818, 383.3760954393191],
                                         [0.0, 0.0, 1.0]])
             t = np.array([0, -365, -1000])
-            
-            pt_x = pt.x()
-            pt_y = pt.y()
-
-            u_normalized = (pt_x - intrinsic_matrix[0, 2]) / intrinsic_matrix[0, 0]
-            v_normalized = (pt_y - intrinsic_matrix[1, 2]) / intrinsic_matrix[1, 1]
-            camera_coords = np.array([u_normalized * z, v_normalized * z, z])
-
             R = np.eye(3)
-            external_matrix = np.identity(4)
-            external_matrix[:3, :3] = R
-            external_matrix[:3, 3] = t
-            world_coords = np.dot(external_matrix, np.append(camera_coords, 1))
+            
+            u = pt.x()
+            v = pt.y()
+
+            fx, fy = intrinsic_matrix[0, 0], intrinsic_matrix[1, 1]
+            cx, cy = intrinsic_matrix[0, 2], intrinsic_matrix[1, 2]
+            
+            x_prime = (u - cx) / fx
+            y_prime = (v - cy) / fy
+
+            # 2. 从归一化相机坐标到相机坐标
+            X_c = z * x_prime
+            Y_c = z * y_prime
+            Z_c = z
+            P_c = np.array([X_c, Y_c, Z_c]).reshape(3, 1)
+
+            # 3. 从相机坐标到世界坐标
+            P_w = np.dot(R, P_c) + t
+
+            # u_normalized = (pt_x - intrinsic_matrix[0, 2]) / intrinsic_matrix[0, 0]
+            # v_normalized = (pt_y - intrinsic_matrix[1, 2]) / intrinsic_matrix[1, 1]
+            # camera_coords = np.array([u_normalized * z, v_normalized * z, z])
+
+            # external_matrix = np.identity(4)
+            # external_matrix[:3, :3] = R
+            # external_matrix[:3, 3] = t
+            # world_coords = np.dot(external_matrix, np.append(camera_coords, 1))
             self.ui.rdoutMouseWorld.setText("(%.0f,%.0f,%.0f)" %
-                                             (world_coords[0], world_coords[1], world_coords[2]))
+                                             (P_w[0], P_w[1], P_w[2]))
       
 
 
