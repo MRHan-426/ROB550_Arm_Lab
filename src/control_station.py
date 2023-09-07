@@ -89,10 +89,16 @@ class Gui(QMainWindow):
         #User Buttons
         self.ui.btnUser1.setText("Calibrate")
         self.ui.btnUser1.clicked.connect(partial(nxt_if_arm_init, 'calibrate'))
+        # self.ui.btnUser2.setText('Open Gripper')
+        # self.ui.btnUser2.clicked.connect(lambda: self.rxarm.gripper.release())
+        # self.ui.btnUser3.setText('Close Gripper')
+        # self.ui.btnUser3.clicked.connect(lambda: self.rxarm.gripper.grasp())
+
         self.ui.btnUser2.setText('Open Gripper')
-        self.ui.btnUser2.clicked.connect(lambda: self.rxarm.gripper.release())
+        self.ui.btnUser2.clicked.connect(partial(nxt_if_arm_init, 'open_gripper'))
         self.ui.btnUser3.setText('Close Gripper')
-        self.ui.btnUser3.clicked.connect(lambda: self.rxarm.gripper.grasp())
+        self.ui.btnUser3.clicked.connect(partial(nxt_if_arm_init, 'close_gripper'))
+
         self.ui.btnUser4.setText('Execute')
         self.ui.btnUser4.clicked.connect(partial(nxt_if_arm_init, 'execute'))
         self.ui.btnUser5.setText('Record Waypoint')
@@ -258,7 +264,6 @@ class Gui(QMainWindow):
             t = t.reshape(3,1)
 
             P_w = R @ P_c + t
-            print(P_w.shape)
             # u_normalized = (pt_x - intrinsic_matrix[0, 2]) / intrinsic_matrix[0, 0]
             # v_normalized = (pt_y - intrinsic_matrix[1, 2]) / intrinsic_matrix[1, 1]
             # camera_coords = np.array([u_normalized * z, v_normalized * z, z])

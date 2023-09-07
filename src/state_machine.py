@@ -27,16 +27,17 @@ class StateMachine():
         self.current_state = "idle"
         self.next_state = "idle"
         self.remembered_waypoint = []
-        self.waypoints = [[-np.pi/2,                -0.5,         -0.3,              0.0,                0.0],
-                          [0.75*-np.pi/2,        0.5,          0.3,     -np.pi/3,         np.pi/2],
-                          [0.5*-np.pi/2,         -0.5,         -0.3,    np.pi / 2,                 0.0],
-                          [0.25*-np.pi/2,        0.5,          0.3,     -np.pi/3,          np.pi/2],
-                          [0.0,                          0.0,          0.0,              0.0,                 0.0],
-                          [0.25*np.pi/2,        -0.5,         -0.3,              0.0,         np.pi/2],
-                          [0.5*np.pi/2,           0.5,           0.3,     -np.pi/3,                0.0],
-                          [0.75*np.pi/2,       -0.5,          -0.3,              0.0,          np.pi/2],
-                          [np.pi/2,                 0.5,            0.3,           -np.pi/3,          0.0],
-                          [0.0,                         0.0,           0.0,            0.0,               0.0]]
+        self.waypoints = [
+                          [-np.pi/2,            -0.5,         -0.3,              0.0,         0.0, 1],
+                          [0.75*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
+                          [0.5*-np.pi/2,        -0.5,         -0.3,        np.pi / 2,         0.0, 1],
+                          [0.25*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
+                          [0.0,                  0.0,          0.0,              0.0,         0.0, 1],
+                          [0.25*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
+                          [0.5*np.pi/2,          0.5,          0.3,         -np.pi/3,         0.0, 1],
+                          [0.75*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
+                          [np.pi/2,              0.5,          0.3,         -np.pi/3,         0.0, 1],
+                          [0.0,                  0.0,          0.0,              0.0,         0.0, 1]]
 
 
     def set_next_state(self, state):
@@ -81,6 +82,11 @@ class StateMachine():
         if self.next_state == "replay":
             self.replay()
 
+        if self.next_state == "open_gripper":
+            self.open_gripper()
+
+        if self.next_state == "close_gripper":
+            self.close_gripper()
 
     """Functions run for each state"""
 
@@ -114,7 +120,7 @@ class StateMachine():
         """
         self.status_message = "State: Execute - Executing motion plan"
         for n in self.waypoints:
-            self.rxarm.set_positions(n)
+            self.rxarm.set_positions(n[:-1])
             time.sleep(3)
         self.next_state = "idle"
 
@@ -128,20 +134,64 @@ class StateMachine():
             self.rxarm.disable_torque()
             self.remembered_waypoint.append(self.waypoints[0])
         else:
-            self.remembered_waypoint.append(self.rxarm.get_positions())
-        #print('yes')
+            # print("!!!!!!!!!!!!!!!!!!!!")
+            # print(self.remembered_waypoint[-1][-1])
+            # print("!!!!!!!!!!!!!!!!!!!!")
+            curr_pos = self.rxarm.get_positions()
+            curr_pos = np.append(curr_pos,self.remembered_waypoint[-1][-1])
+            self.remembered_waypoint.append(curr_pos)
+        self.next_state = "idle"
+
+    def close_gripper(self) :
+        self.status_message = "State: close gripper"
+        # if self.remembered_waypoint == []:
+        #     self.remembered_waypoint.append(self.waypoints[0])
+        self.remembered_waypoint[-1][-1] = 0
+        self.rxarm.enable_torque()
+        time.sleep(0.2)
+        self.rxarm.gripper.grasp()
+        time.sleep(0.5)
+        self.rxarm.disable_torque()
+        # time.sleep(3)
+        self.next_state = "idle"
+
+    def open_gripper(self):
+        """!
+        """
+        self.status_message = "State: open gripper"
+        if self.remembered_waypoint == []:
+            self.remembered_waypoint.append(self.waypoints[0])
+        else:
+            self.remembered_waypoint[-1][-1] = 1
+        self.rxarm.enable_torque()
+        time.sleep(0.2)
+        self.rxarm.gripper.release()
+        time.sleep(1)
+        self.rxarm.disable_torque()
         self.next_state = "idle"
         
-
     def replay(self):
-        self.status_message = "State: replay recorded position "
+
         self.rxarm.enable_torque()
-        print(self.remembered_waypoint)
+        time.sleep(0.2)
+        self.rxarm.gripper.release()
+        time.sleep(0.2)
+
+        self.status_message = "State: replay recorded position "
+        # print('############')
+        # print(self.remembered_waypoint[1:])
+
         for n in self.remembered_waypoint[1:]:
-            #print(n)
-            self.rxarm.set_positions(n)
+            self.rxarm.set_positions(n[:-1])
             time.sleep(3)
+            if not n[-1]:
+                self.rxarm.gripper.grasp()
+                time.sleep(0.3)
+            else:
+                self.rxarm.gripper.release()
+                time.sleep(0.3)
         self.next_state = "idle"
+
 
     def calibrate(self):
         """!
@@ -166,6 +216,7 @@ class StateMachine():
         """
         self.current_state = "initialize_rxarm"
         self.status_message = "RXArm Initialized!"
+        self.remembered_waypoint = []
         if not self.rxarm.initialize():
             print('Failed to initialize the rxarm')
             self.status_message = "State: Failed to initialize the rxarm!"
