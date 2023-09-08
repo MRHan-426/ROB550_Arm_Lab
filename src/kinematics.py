@@ -54,11 +54,7 @@ def FK_dh(dh_params, joint_angles, link):
         d     = dh_params[i][2]
         theta = dh_params[i][3] + joint_angles[i]
 
-        A_i = np.array([[cos(theta), -sin(theta)*cos(alpha), sin(theta)*sin(alpha) , a * cos(theta)],
-                        [sin(theta), cos(theta)*cos(alpha) , -cos(theta)*sin(alpha), a * sin(theta)],
-                        [0         , sin(alpha)            , cos(alpha)            , d             ],
-                        [0         , 0                     , 0                     , 1             ]])
-        
+        A_i = get_transform_from_dh(a, alpha, d, theta)
         T = np.matmul(T, A_i)
     
     return T
@@ -78,10 +74,14 @@ def get_transform_from_dh(a, alpha, d, theta):
 
     @return     The 4x4 transformation matrix.
     """
-    pass
+    A_i = np.array([[cos(theta), -sin(theta)*cos(alpha), sin(theta)*sin(alpha) , a * cos(theta)],
+                    [sin(theta), cos(theta)*cos(alpha) , -cos(theta)*sin(alpha), a * sin(theta)],
+                    [0         , sin(alpha)            , cos(alpha)            , d             ],
+                    [0         , 0                     , 0                     , 1             ]])
+    return A_i
 
 
-def get_euler_angles_from_T(T):
+def get_euler_angles_from_T(T, style = "zyx"):
     """!
     @brief      Gets the euler angles from a transformation matrix.
 
@@ -92,10 +92,56 @@ def get_euler_angles_from_T(T):
 
     @return     The euler angles from T.
     """
-    pass
+    R = T[0:3,0:3]
+
+    def zyx(): # BY DEFAULT
+        yaw = np.arctan2(R[1, 0], R[0, 0])
+        pitch = np.arctan2(-R[2, 0], np.sqrt(R[2, 1]**2 + R[2, 2]**2))
+        roll = np.arctan2(R[2, 1], R[2, 2])
+        return np.array([yaw, pitch, roll])
+
+    def xyz():
+        roll = np.arctan2(-R[1, 2], R[2, 2])
+        pitch = np.arctan2(R[0, 2], np.sqrt(R[0, 0]**2 + R[0, 1]**2))
+        yaw = np.arctan2(-R[0, 1], R[0, 0])
+        return np.array([roll, pitch, yaw])
+
+    def yzx():
+        yaw = np.arctan2(-R[0, 1], R[1, 1])
+        pitch = np.arctan2(R[2, 1], np.sqrt(R[2, 0]**2 + R[2, 2]**2))
+        roll = np.arctan2(-R[2, 0], R[2, 2])
+        return np.array([yaw, pitch, roll])
+
+    def xzy():
+        roll = np.arctan2(R[1, 0], R[0, 0])
+        pitch = np.arctan2(-R[2, 0], np.sqrt(R[2, 1]**2 + R[2, 2]**2))
+        yaw = np.arctan2(R[0, 2], R[2, 2])
+        return np.array([roll, pitch, yaw])
+
+    def zxy():
+        yaw = np.arctan2(R[1, 2], R[2, 2])
+        pitch = np.arctan2(-R[0, 2], np.sqrt(R[0, 0]**2 + R[0, 1]**2))
+        roll = np.arctan2(R[0, 1], R[0, 0])
+        return np.array([yaw, pitch, roll])
+
+    def yxz():
+        roll = np.arctan2(R[2, 1], R[1, 1])
+        pitch = np.arctan2(-R[0, 1], np.sqrt(R[0, 0]**2 + R[0, 2]**2))
+        yaw = np.arctan2(R[0, 2], R[0, 0])
+        return np.array([roll, pitch, yaw])
+    
+    switcher = {
+        "zyx": zyx,
+        "xyz": xyz,
+        "yzx": yzx,
+        "xzy": xzy,
+        "zxy": zxy,
+        "yxz": yxz}
+
+    return switcher.get(style, zyx)()
 
 
-def get_pose_from_T(T):
+def get_pose_from_T(T, style = "zyx"):
     """!
     @brief      Gets the pose from T.
 
@@ -105,7 +151,10 @@ def get_pose_from_T(T):
 
     @return     The pose vector from T.
     """
-    pass
+    positions = np.array(T[0:3, 3])
+    euler_angles = get_euler_angles_from_T(T, style)
+    return np.concatenate((positions, euler_angles))
+
 
 
 def FK_pox(joint_angles, m_mat, s_lst):
