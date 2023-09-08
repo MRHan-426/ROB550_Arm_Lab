@@ -30,7 +30,7 @@ def FK_dh(dh_params, joint_angles, link = 5):
     """!
     @brief      Get the 4x4 transformation matrix from link to world
 
-                TODO: implement this function
+                TODO(DONE): implement this function
 
                 Calculate forward kinematics for rexarm using DH convention
 
@@ -65,7 +65,7 @@ def get_transform_from_dh(a, alpha, d, theta):
     """!
     @brief      Gets the transformation matrix T from dh parameters.
 
-    TODO: Find the T matrix from a row of a DH table
+    TODO(DONE): Find the T matrix from a row of a DH table
 
     @param      a      a meters
     @param      alpha  alpha radians
@@ -85,7 +85,7 @@ def get_euler_angles_from_T(T, style = "zyz"):
     """!
     @brief      Gets the euler angles from a transformation matrix.
 
-                TODO: Implement this function return the 3 Euler angles from a 4x4 transformation matrix T
+                TODO(DONE): Implement this function return the 3 Euler angles from a 4x4 transformation matrix T
                 If you like, add an argument to specify the Euler angles used (xyx, zyz, etc.)
 
     @param      T     transformation matrix
@@ -124,7 +124,7 @@ def get_pose_from_T(T, style = "zyz"):
     """!
     @brief      Gets the pose from T.
 
-                TODO: implement this function return the 6DOF pose vector from a 4x4 transformation matrix T
+                TODO(DONE): implement this function return the 6DOF pose vector from a 4x4 transformation matrix T
 
     @param      T     transformation matrix
 
