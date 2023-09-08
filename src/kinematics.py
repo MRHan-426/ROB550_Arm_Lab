@@ -26,7 +26,7 @@ def clamp(angle):
     return angle
 
 
-def FK_dh(dh_params, joint_angles, link):
+def FK_dh(dh_params, joint_angles, link = 5):
     """!
     @brief      Get the 4x4 transformation matrix from link to world
 
