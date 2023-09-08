@@ -119,6 +119,7 @@ class StateMachine():
               Make sure you respect estop signal
         """
         self.status_message = "State: Execute - Executing motion plan"
+        self.current_state = "execute"
         for n in self.waypoints:
             self.rxarm.set_positions(n[:-1])
             time.sleep(3)
@@ -126,39 +127,42 @@ class StateMachine():
 
     def record(self):
         """!
+        @brief      Record positions of the arm, one click for one position.
         """
         self.status_message = "State: record current position"
+        self.current_state = "record"
+
         if self.remembered_waypoint == []:
             self.rxarm.sleep()
             time.sleep(3)
             self.rxarm.disable_torque()
             self.remembered_waypoint.append(self.waypoints[0])
         else:
-            # print("!!!!!!!!!!!!!!!!!!!!")
-            # print(self.remembered_waypoint[-1][-1])
-            # print("!!!!!!!!!!!!!!!!!!!!")
             curr_pos = self.rxarm.get_positions()
             curr_pos = np.append(curr_pos,self.remembered_waypoint[-1][-1])
             self.remembered_waypoint.append(curr_pos)
         self.next_state = "idle"
 
     def close_gripper(self) :
+        """!
+        @brief      close the gripper of the arm.
+        """
         self.status_message = "State: close gripper"
-        # if self.remembered_waypoint == []:
-        #     self.remembered_waypoint.append(self.waypoints[0])
+        self.current_state = "close_gripper"
         self.remembered_waypoint[-1][-1] = 0
         self.rxarm.enable_torque()
         time.sleep(0.2)
         self.rxarm.gripper.grasp()
         time.sleep(0.5)
         self.rxarm.disable_torque()
-        # time.sleep(3)
         self.next_state = "idle"
 
     def open_gripper(self):
         """!
+        @brief      open the gripper of the arm.
         """
         self.status_message = "State: open gripper"
+        self.current_state = "open_gripper"
         if self.remembered_waypoint == []:
             self.remembered_waypoint.append(self.waypoints[0])
         else:
@@ -171,15 +175,16 @@ class StateMachine():
         self.next_state = "idle"
         
     def replay(self):
+        """!
+        @brief      Replay those recorded positions.
+        """
+        self.status_message = "State: replay recorded position "
+        self.current_state = "replay"
 
         self.rxarm.enable_torque()
         time.sleep(0.2)
         self.rxarm.gripper.release()
         time.sleep(0.2)
-
-        self.status_message = "State: replay recorded position "
-        # print('############')
-        # print(self.remembered_waypoint[1:])
 
         for n in self.remembered_waypoint[1:]:
             self.rxarm.set_positions(n[:-1])
