@@ -74,10 +74,10 @@ def get_transform_from_dh(a, alpha, d, theta):
 
     @return     The 4x4 transformation matrix.
     """
-    A_i = np.array([[cos(theta), -sin(theta)*cos(alpha), sin(theta)*sin(alpha) , a * cos(theta)],
-                    [sin(theta), cos(theta)*cos(alpha) , -cos(theta)*sin(alpha), a * sin(theta)],
-                    [0         , sin(alpha)            , cos(alpha)            , d             ],
-                    [0         , 0                     , 0                     , 1             ]])
+    A_i = np.array([[np.cos(theta), -np.sin(theta)*np.cos(alpha), np.sin(theta)*np.sin(alpha) , a * np.cos(theta)],
+                    [np.sin(theta), np.cos(theta)*np.cos(alpha) , -np.cos(theta)*np.sin(alpha), a * np.sin(theta)],
+                    [0            , np.sin(alpha)               , np.cos(alpha)               , d                ],
+                    [0            , 0                           , 0                           , 1                ]])
     return A_i
 
 
@@ -154,7 +154,7 @@ def FK_pox(joint_angles, m_mat, s_lst):
         w = s_lst[i][:3]
         v = s_lst[i][3:]
         s = to_s_matrix(w, v)
-        e_s = scipy.linalg.expm(s * joint_angles[i])
+        e_s = expm(s * joint_angles[i])
         T = np.matmul(T, e_s)
         
     return np.matmul(T, m_mat)
@@ -198,19 +198,19 @@ def IK_geometric(dh_params, pose):
 
 # For test of Forward Kinematics
 if __name__ == '__main__':
-    dh_config_file = "../config/rx200_dh.csv"
+    dh_config_file = "config/rx200_dh.csv"
     dh_params = parse_dh_param_file(dh_config_file)
-    pox_config_file = "../config/rx200_pox.csv"
+    pox_config_file = "config/rx200_pox.csv"
     m_mat, s_lst = parse_pox_param_file(pox_config_file)
 
-    joint_angles = [0,0,0,0,0]
+    joint_angles = [0.3926,0.3926,0.3926,0.3926,0.3926]
 
     T_DH = FK_dh(dh_params=dh_params, joint_angles=joint_angles, link=5)
     T_POX = FK_pox(joint_angles=joint_angles, m_mat=m_mat,s_lst=s_lst)
 
-    if numpy.allclose(T_DH, T_POX, rtol=1e-05, atol=1e-08):
+    if np.allclose(T_DH, T_POX, rtol=1e-05, atol=1e-08):
         print("POX and DH get the same result, mission complete.")
     else:
         print("ERROR OCCURS")
-        print(f"DH Transform Matrix: {T_DH}")
-        print(f"POX Transform Matrix: {T_POX}")
+        print(f"DH Transform Matrix:\n {T_DH}")
+        print(f"POX Transform Matrix:\n {T_POX}")
