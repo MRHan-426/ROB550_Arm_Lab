@@ -81,7 +81,7 @@ def get_transform_from_dh(a, alpha, d, theta):
     return A_i
 
 
-def get_euler_angles_from_T(T, style = "zyx"):
+def get_euler_angles_from_T(T, style = "zyz"):
     """!
     @brief      Gets the euler angles from a transformation matrix.
 
@@ -94,54 +94,33 @@ def get_euler_angles_from_T(T, style = "zyx"):
     """
     R = T[0:3,0:3]
 
-    def zyx(): # BY DEFAULT
+    def zyz(): # BY DEFAULT
+        alpha = np.arctan2(R[1, 2], R[0, 2])
+        beta = np.arctan2(np.sqrt(R[0, 2]**2 + R[1, 2]**2), R[2, 2])
+        gamma = np.arctan2(R[2, 1], -R[2, 0])
+        return np.array([alpha, beta, gamma])
+
+    def xyx():
+        alpha = np.arctan2(R[1, 0], -R[2, 0])
+        beta = np.arctan2(np.sqrt(R[0, 0]**2 + R[0, 1]**2), R[0, 2])
+        gamma = np.arctan2(R[0, 1], R[0, 0])
+        return np.array([alpha, beta, gamma])
+
+    def zyx(): 
         yaw = np.arctan2(R[1, 0], R[0, 0])
         pitch = np.arctan2(-R[2, 0], np.sqrt(R[2, 1]**2 + R[2, 2]**2))
         roll = np.arctan2(R[2, 1], R[2, 2])
         return np.array([yaw, pitch, roll])
 
-    def xyz():
-        roll = np.arctan2(-R[1, 2], R[2, 2])
-        pitch = np.arctan2(R[0, 2], np.sqrt(R[0, 0]**2 + R[0, 1]**2))
-        yaw = np.arctan2(-R[0, 1], R[0, 0])
-        return np.array([roll, pitch, yaw])
-
-    def yzx():
-        yaw = np.arctan2(-R[0, 1], R[1, 1])
-        pitch = np.arctan2(R[2, 1], np.sqrt(R[2, 0]**2 + R[2, 2]**2))
-        roll = np.arctan2(-R[2, 0], R[2, 2])
-        return np.array([yaw, pitch, roll])
-
-    def xzy():
-        roll = np.arctan2(R[1, 0], R[0, 0])
-        pitch = np.arctan2(-R[2, 0], np.sqrt(R[2, 1]**2 + R[2, 2]**2))
-        yaw = np.arctan2(R[0, 2], R[2, 2])
-        return np.array([roll, pitch, yaw])
-
-    def zxy():
-        yaw = np.arctan2(R[1, 2], R[2, 2])
-        pitch = np.arctan2(-R[0, 2], np.sqrt(R[0, 0]**2 + R[0, 1]**2))
-        roll = np.arctan2(R[0, 1], R[0, 0])
-        return np.array([yaw, pitch, roll])
-
-    def yxz():
-        roll = np.arctan2(R[2, 1], R[1, 1])
-        pitch = np.arctan2(-R[0, 1], np.sqrt(R[0, 0]**2 + R[0, 2]**2))
-        yaw = np.arctan2(R[0, 2], R[0, 0])
-        return np.array([roll, pitch, yaw])
-    
     switcher = {
-        "zyx": zyx,
-        "xyz": xyz,
-        "yzx": yzx,
-        "xzy": xzy,
-        "zxy": zxy,
-        "yxz": yxz}
+        "zyz": zyz,
+        "xyx": xyx,
+        "zyx": zyx}
 
-    return switcher.get(style, zyx)()
+    return switcher.get(style, zyz)()
 
 
-def get_pose_from_T(T, style = "zyx"):
+def get_pose_from_T(T, style = "zyz"):
     """!
     @brief      Gets the pose from T.
 
