@@ -52,11 +52,13 @@ def FK_dh(dh_params, joint_angles, link):
         a     = dh_params[i][0]
         alpha = dh_params[i][1]
         d     = dh_params[i][2]
-        theta = dh_params[i][3]
+        theta = dh_params[i][3] + joint_angles[i]
+
         A_i = np.array([[cos(theta), -sin(theta)*cos(alpha), sin(theta)*sin(alpha) , a * cos(theta)],
                         [sin(theta), cos(theta)*cos(alpha) , -cos(theta)*sin(alpha), a * sin(theta)],
                         [0         , sin(alpha)            , cos(alpha)            , d             ],
                         [0         , 0                     , 0                     , 1             ]])
+        
         T = np.matmul(T, A_i)
     
     return T
