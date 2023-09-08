@@ -140,7 +140,7 @@ def FK_pox(joint_angles, m_mat, s_lst):
     """!
     @brief      Get a  representing the pose of the desired link
 
-                TODO: implement this function, Calculate forward kinematics for rexarm using product of exponential
+                TODO(DONE): implement this function, Calculate forward kinematics for rexarm using product of exponential
                 formulation return a 4x4 homogeneous matrix representing the pose of the desired link
 
     @param      joint_angles  The joint angles
@@ -149,14 +149,22 @@ def FK_pox(joint_angles, m_mat, s_lst):
 
     @return     a 4x4 homogeneous matrix representing the pose of the desired link
     """
-    pass
+    T = np.eye(4)
+    for i in range(len(s_lst)):
+        w = s_lst[i][:3]
+        v = s_lst[i][3:]
+        s = to_s_matrix(w, v)
+        e_s = scipy.linalg.expm(s * joint_angles[i])
+        T = np.matmul(T, e_s)
+        
+    return np.matmul(T, m_mat)
 
 
 def to_s_matrix(w, v):
     """!
     @brief      Convert to s matrix.
 
-    TODO: implement this function
+    TODO(DONE): implement this function
     Find the [s] matrix for the POX method e^([s]*theta)
 
     @param      w     { parameter_description }
@@ -164,7 +172,13 @@ def to_s_matrix(w, v):
 
     @return     { description_of_the_return_value }
     """
-    pass
+    w1,w2,w3 = w
+    v1,v2,v3 = v
+    s = np.array([[0,-w3,w2,v1],
+                [w3,0,-w1,v2],
+                [-w2,w1,0,v3],
+                [0,0,0,1]])
+    return s
 
 
 def IK_geometric(dh_params, pose):
