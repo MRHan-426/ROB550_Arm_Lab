@@ -194,4 +194,5 @@ def IK_geometric(dh_params, pose):
                 configuration
     """
     
-    pass
+
+    return0
