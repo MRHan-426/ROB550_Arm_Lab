@@ -6,9 +6,9 @@ There are some functions to start with, you may need to implement a few more
 """
 
 import numpy as np
-# expm is a matrix exponential function
-from scipy.linalg import expm
 import math
+from scipy.linalg import expm
+from resource.config_parse import parse_dh_param_file, parse_pox_param_file
 
 
 def clamp(angle):
@@ -193,6 +193,24 @@ def IK_geometric(dh_params, pose):
     @return     All four possible joint configurations in a numpy array 4x4 where each row is one possible joint
                 configuration
     """
-    
+    pass
 
-    return0
+
+# For test of Forward Kinematics
+if __name__ == '__main__':
+    dh_config_file = "../config/rx200_dh.csv"
+    dh_params = parse_dh_param_file(dh_config_file)
+    pox_config_file = "../config/rx200_pox.csv"
+    m_mat, s_lst = parse_pox_param_file(pox_config_file)
+
+    joint_angles = [0,0,0,0,0]
+
+    T_DH = FK_dh(dh_params=dh_params, joint_angles=joint_angles, link=5)
+    T_POX = FK_pox(joint_angles=joint_angles, m_mat=m_mat,s_lst=s_lst)
+
+    if numpy.allclose(T_DH, T_POX, rtol=1e-05, atol=1e-08):
+        print("POX and DH get the same result, mission complete.")
+    else:
+        print("ERROR OCCURS")
+        print(f"DH Transform Matrix: {T_DH}")
+        print(f"POX Transform Matrix: {T_POX}")
