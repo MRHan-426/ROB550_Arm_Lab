@@ -8,6 +8,7 @@ There are some functions to start with, you may need to implement a few more
 import numpy as np
 # expm is a matrix exponential function
 from scipy.linalg import expm
+import math
 
 
 def clamp(angle):
@@ -40,12 +41,27 @@ def FK_dh(dh_params, joint_angles, link):
     @param      dh_params     The dh parameters as a 2D list each row represents a link and has the format [a, alpha, d,
                               theta]
     @param      joint_angles  The joint angles of the links
-    @param      link          The link to transform from
+    @param      link          The link to transform from // link is a number
 
     @return     a transformation matrix representing the pose of the desired link
     """
-    pass
 
+    T = np.eye(4)
+
+    for i in range(link):
+        a     = dh_params[i][0]
+        alpha = dh_params[i][1]
+        d     = dh_params[i][2]
+        theta = dh_params[i][3]
+        A_i = np.array([[cos(theta), -sin(theta)*cos(alpha), sin(theta)*sin(alpha) , a * cos(theta)],
+                        [sin(theta), cos(theta)*cos(alpha) , -cos(theta)*sin(alpha), a * sin(theta)],
+                        [0         , sin(alpha)            , cos(alpha)            , d             ],
+                        [0         , 0                     , 0                     , 1             ]])
+        T = np.matmul(T, A_i)
+    
+    return T
+    
+        
 
 def get_transform_from_dh(a, alpha, d, theta):
     """!
