@@ -89,6 +89,7 @@ class RXArm(InterbotixManipulatorXS):
         #POX params
         self.M_matrix = []
         self.S_list = []
+        self.csv_file_path = "example.csv"
 
     def initialize(self):
         """!
@@ -184,7 +185,6 @@ class RXArm(InterbotixManipulatorXS):
         """
         return self.effort_fb
 
-
 #   @_ensure_initialized
 
     def get_ee_pose(self):
@@ -227,6 +227,8 @@ class RXArm(InterbotixManipulatorXS):
         return self.dh_params
 
 
+
+
 class RXArmThread(QThread):
     """!
     @brief      This class describes a RXArm thread.
@@ -260,6 +262,12 @@ class RXArmThread(QThread):
         self.rxarm.effort_fb = np.asarray(data.effort)[0:5]
         self.updateJointReadout.emit(self.rxarm.position_fb.tolist())
         self.updateEndEffectorReadout.emit(self.rxarm.get_ee_pose())
+        self.rxarm.timestamp = np.asarray(data.header.stamp.sec)
+        
+        with open(self.rxarm.csv_file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([self.rxarm.timestamp] + self.rxarm.position_fb.tolist())
+
         #for name in self.rxarm.joint_names:
         #    print("{0} gains: {1}".format(name, self.rxarm.get_motor_pid_params(name)))
         if (__name__ == '__main__'):

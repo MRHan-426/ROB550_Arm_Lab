@@ -9,7 +9,7 @@ import numpy as np
 import math
 from scipy.linalg import expm
 from resource.config_parse import parse_dh_param_file, parse_pox_param_file
-
+import matplotlib.pyplot as plt
 
 def clamp(angle):
     """!
@@ -196,21 +196,39 @@ def IK_geometric(dh_params, pose):
     pass
 
 
+def plot_joint_angles(file_path):
+    """!
+    """
+    with open(file_path, mode='r', newline='') as file:
+        reader = csv.reader(file)
+        plt.figure(figsize=(10, 6))
+        for row in reader:
+            plt.plot(row[0], row[1:])
+
+    plt.xlabel('Time')
+    plt.ylabel('Joint Angle (radians)')
+    plt.title('Joint Angles Over Time for 1 Cycle')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
 # For test of Forward Kinematics
 if __name__ == '__main__':
-    dh_config_file = "config/rx200_dh.csv"
-    dh_params = parse_dh_param_file(dh_config_file)
-    pox_config_file = "config/rx200_pox.csv"
-    m_mat, s_lst = parse_pox_param_file(pox_config_file)
+    # dh_config_file = "config/rx200_dh.csv"
+    # dh_params = parse_dh_param_file(dh_config_file)
+    # pox_config_file = "config/rx200_pox.csv"
+    # m_mat, s_lst = parse_pox_param_file(pox_config_file)
 
-    joint_angles = [clamp(6),clamp(7),clamp(8),clamp(9),clamp(10)]
+    # joint_angles = [clamp(6),clamp(7),clamp(8),clamp(9),clamp(10)]
 
-    T_DH = FK_dh(dh_params=dh_params, joint_angles=joint_angles, link=5)
-    T_POX = FK_pox(joint_angles=joint_angles, m_mat=m_mat,s_lst=s_lst)
+    # T_DH = FK_dh(dh_params=dh_params, joint_angles=joint_angles, link=5)
+    # T_POX = FK_pox(joint_angles=joint_angles, m_mat=m_mat,s_lst=s_lst)
 
-    if np.allclose(T_DH, T_POX, rtol=1e-05, atol=1e-08):
-        print("POX and DH get the same result, mission complete.")
-    else:
-        print("ERROR OCCURS")
-        print(f"DH Transform Matrix:\n {T_DH}")
-        print(f"POX Transform Matrix:\n {T_POX}")
+    # if np.allclose(T_DH, T_POX, rtol=1e-05, atol=1e-08):
+    #     print("POX and DH get the same result, mission complete.")
+    # else:
+    #     print("ERROR OCCURS")
+    #     print(f"DH Transform Matrix:\n {T_DH}")
+    #     print(f"POX Transform Matrix:\n {T_POX}")
+    file_path = "example.csv"
+    plot_joint_angles(file_path)
