@@ -17,6 +17,7 @@ from kinematics import FK_dh, FK_pox, get_pose_from_T
 import time
 import csv
 import sys, os
+from std_msgs.msg import Int32
 
 from builtins import super
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
@@ -89,7 +90,7 @@ class RXArm(InterbotixManipulatorXS):
         #POX params
         self.M_matrix = []
         self.S_list = []
-        self.csv_file_path = "example.csv"
+        self.csv_file_path = "/home/student_pm/armlab-f23/src/example.csv"
 
     def initialize(self):
         """!
@@ -247,6 +248,8 @@ class RXArmThread(QThread):
         QThread.__init__(self, parent=parent)
         self.rxarm = rxarm
         self.node = rclpy.create_node('rxarm_thread')
+        self.JB_replay = 0
+
         self.subscription = self.node.create_subscription(
             JointState,
             '/rx200/joint_states',
@@ -254,7 +257,18 @@ class RXArmThread(QThread):
             10
         )
         self.subscription  # prevent unused variable warning
-        rclpy.spin_once(self.node, timeout_sec=0.5)
+
+        self.JB_subscription = self.node.create_subscription(
+            Int32,
+            '/JB_replay',
+            self.JB_callback,
+            10
+        )
+        self.JB_subscription  # prevent unused variable warning
+        rclpy.spin_once(self.node, timeout_sec = 0.5)
+
+    def JB_callback(self, data):
+        self.JB_replay = data.data
 
     def callback(self, data):
         self.rxarm.position_fb = np.asarray(data.position)[0:5]
@@ -264,9 +278,11 @@ class RXArmThread(QThread):
         self.updateEndEffectorReadout.emit(self.rxarm.get_ee_pose())
         self.rxarm.timestamp = np.asarray(data.header.stamp.sec)
         
-        with open(self.rxarm.csv_file_path, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow([self.rxarm.timestamp] + self.rxarm.position_fb.tolist())
+        if self.JB_replay:
+            print([self.rxarm.timestamp] + self.rxarm.position_fb.tolist())
+            with open(self.rxarm.csv_file_path, mode='a', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow([self.rxarm.timestamp] + self.rxarm.position_fb.tolist())
 
         #for name in self.rxarm.joint_names:
         #    print("{0} gains: {1}".format(name, self.rxarm.get_motor_pid_params(name)))

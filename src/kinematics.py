@@ -10,6 +10,7 @@ import math
 from scipy.linalg import expm
 from resource.config_parse import parse_dh_param_file, parse_pox_param_file
 import matplotlib.pyplot as plt
+import csv
 
 def clamp(angle):
     """!
@@ -199,16 +200,28 @@ def IK_geometric(dh_params, pose):
 def plot_joint_angles(file_path):
     """!
     """
+    x,y1,y2,y3,y4,y5 = [],[],[],[],[],[]
+
     with open(file_path, mode='r', newline='') as file:
         reader = csv.reader(file)
-        plt.figure(figsize=(10, 6))
         for row in reader:
-            plt.plot(row[0], row[1:])
-
-    plt.xlabel('Time')
-    plt.ylabel('Joint Angle (radians)')
-    plt.title('Joint Angles Over Time for 1 Cycle')
-    plt.legend()
+            x.append(float(row[0]))
+            y1.append(float(row[1]))
+            y2.append(float(row[2]))
+            y3.append(float(row[3]))
+            y4.append(float(row[4]))
+            y5.append(float(row[5]))
+            
+    fig,ax = plt.subplots()
+    ax.plot(x, y1,label='Joint1')
+    ax.plot(x, y2,label='Joint2')
+    ax.plot(x, y3,label='Joint3')
+    ax.plot(x, y4,label='Joint4')
+    ax.plot(x, y5,label='Joint5')
+    ax.legend()
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Joint Angle (radians)')
+    ax.set_title('Joint Angles Over Time for 1 Cycle')
     plt.grid(True)
     plt.show()
 

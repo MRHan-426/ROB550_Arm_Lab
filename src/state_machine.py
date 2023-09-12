@@ -5,6 +5,8 @@ from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot, QTimer
 import time
 import numpy as np
 import rclpy
+from sensor_msgs.msg import JointState
+from std_msgs.msg import Int32
 
 class StateMachine():
     """!
@@ -27,6 +29,7 @@ class StateMachine():
         self.current_state = "idle"
         self.next_state = "idle"
         self.remembered_waypoint = []
+        self.csv_file_path = "/home/student_pm/armlab-f23/src/example.csv"
         self.waypoints = [
                           [-np.pi/2,            -0.5,         -0.3,              0.0,         0.0, 1],
                           [0.75*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
@@ -38,6 +41,13 @@ class StateMachine():
                           [0.75*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
                           [np.pi/2,              0.5,          0.3,         -np.pi/3,         0.0, 1],
                           [0.0,                  0.0,          0.0,              0.0,         0.0, 1]]
+        self.node = rclpy.create_node('JB_node')
+        
+        self.publisher = self.node.create_publisher(
+            Int32,
+            'JB_replay',
+            10
+        )
 
 
     def set_next_state(self, state):
@@ -181,6 +191,11 @@ class StateMachine():
         self.status_message = "State: replay recorded position "
         self.current_state = "replay"
 
+
+        msg = Int32()
+        msg.data = 1
+        self.publisher.publish(msg)
+
         self.rxarm.enable_torque()
         time.sleep(0.2)
         self.rxarm.gripper.release()
@@ -195,6 +210,9 @@ class StateMachine():
             else:
                 self.rxarm.gripper.release()
                 time.sleep(0.3)
+
+        msg.data = 0
+        self.publisher.publish(msg)
         self.next_state = "idle"
 
 
@@ -243,6 +261,31 @@ class StateMachineThread(QThread):
         """
         QThread.__init__(self, parent=parent)
         self.sm=state_machine
+        # self.node = rclpy.create_node('JB_thread')
+        # self.subscription = self.node.create_subscription(
+        #     JointState,
+        #     '/rx200/joint_states',
+        #     self.JB_callback,
+        #     10
+        # )
+        # self.subscription  # prevent unused variable warning
+        # rclpy.spin_once(self.node, timeout_sec = 0.5)
+
+
+    # def JB_callback(self, data):
+    #     print(111111111)
+    #     if self.sm.if_replay:
+    #         self.position_fb = np.asarray(data.position)[0:5]
+    #         # self.velocity_fb = np.asarray(data.velocity)[0:5]
+    #         # self.effort_fb = np.asarray(data.effort)[0:5]
+    #         # self.updateJointReadout.emit(self.rxarm.position_fb.tolist())
+    #         # self.updateEndEffectorReadout.emit(self.rxarm.get_ee_pose())
+    #         self.timestamp = np.asarray(data.header.stamp.sec)
+    #         print([self.timestamp] + self.position_fb.tolist())
+
+    #         with open(self.sm.csv_file_path, mode='a', newline='') as file:
+    #             writer = csv.writer(file)
+    #             writer.writerow([self.timestamp] + self.position_fb.tolist())
 
     def run(self):
         """!
