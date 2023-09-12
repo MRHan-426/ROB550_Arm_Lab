@@ -209,6 +209,25 @@ class Camera():
         """
         modified_image = self.VideoFrame.copy()
         # Write your code here
+        tag_info = []
+
+        for detection in msg.detections:
+            # Draw center
+            center = [int(detection.centre.x), int(detection.centre.y)]
+            cv2.circle(modified_image, center, 3, (0, 255, 0), thickness=-1)
+            # Draw edges
+            corner1 = [int(detection.corners[0].x),int(detection.corners[0].y)]
+            corner2 = [int(detection.corners[1].x),int(detection.corners[1].y)]
+            corner3 = [int(detection.corners[2].x),int(detection.corners[2].y)]
+            corner4 = [int(detection.corners[3].x),int(detection.corners[3].y)]
+            cv2.line(modified_image, corner1,corner2, (0, 0, 255), thickness=2)
+            cv2.line(modified_image, corner2,corner3, (0, 0, 255), thickness=2)
+            cv2.line(modified_image, corner3,corner4, (0, 0, 255), thickness=2)
+            cv2.line(modified_image, corner4,corner1, (0, 0, 255), thickness=2)
+            # Draw ID
+            ID_pos = [center[0]+20,center[1]-20]
+            ID = "ID: " + str(detection.id)
+            cv2.putText(modified_image,ID,ID_pos,cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,0,0),thickness=2)
 
         self.TagImageFrame = modified_image
 
