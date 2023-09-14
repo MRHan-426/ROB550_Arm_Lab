@@ -13,11 +13,10 @@ import time
 import numpy as np
 from PyQt5.QtGui import QImage
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
-from std_msgs.msg import String
+from std_msgs.msg import String, Int32
 from sensor_msgs.msg import Image, CameraInfo
 from apriltag_msgs.msg import *
 from cv_bridge import CvBridge, CvBridgeError
-
 
 class Camera():
     """!
@@ -35,6 +34,7 @@ class Camera():
         """ Extra arrays for colormaping the depth image"""
         self.DepthFrameHSV = np.zeros((720,1280, 3)).astype(np.uint8)
         self.DepthFrameRGB = np.zeros((720,1280, 3)).astype(np.uint8)
+        self.tagsCenter = []
 
 
         # mouse clicks & calibration variables
@@ -49,7 +49,7 @@ class Camera():
         self.grid_y_points = np.arange(-175, 525, 50)
         self.grid_points = np.array(np.meshgrid(self.grid_x_points, self.grid_y_points))
         self.tag_detections = np.array([])
-        self.tag_locations = [[-250, -25], [250, -25], [250, 275]]
+        self.tag_locations = [[-250, -25, 0], [250, -25, 0], [250, 275, 0], [-250, 275, 0]]
         """ block info """
         self.block_contours = np.array([])
         self.block_detections = np.array([])
@@ -209,11 +209,11 @@ class Camera():
         """
         modified_image = self.VideoFrame.copy()
         # Write your code here
-        tag_info = []
-
+        self.tagsCenter = []
         for detection in msg.detections:
             # Draw center
             center = [int(detection.centre.x), int(detection.centre.y)]
+            self.tagsCenter.append(center)
             cv2.circle(modified_image, center, 3, (0, 255, 0), thickness=-1)
             # Draw edges
             corner1 = [int(detection.corners[0].x),int(detection.corners[0].y)]
@@ -230,6 +230,22 @@ class Camera():
             cv2.putText(modified_image,ID,ID_pos,cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,0,0),thickness=2)
 
         self.TagImageFrame = modified_image
+
+    def calibrateFromAprilTag(self, msg):
+        image_points = np.array(self.tagsCenter).astype(np.float32)
+        world_points = np.array(self.tag_locations).astype(np.float32)
+        # print(image_points)
+        # print(world_points)
+        # my_intrinsic_matrix = np.array([[966.4680463529985, 0.0, 647.860390835071],
+        #                              [0.0, 956.7410588471818, 383.3760954393191],
+        #                              [0.0, 0.0, 1.0]])
+        success, rvec, T = cv2.solvePnP(world_points, image_points, self.intrinsic_matrix, None)
+        R, _ = cv2.Rodrigues(rvec)
+        self.extrinsic_matrix = np.concatenate((R, T), 1)
+        self.extrinsic_matrix = np.vstack((self.extrinsic_matrix, [0,0,0,1]))
+
+        print("Calibrition done")
+        print(self.extrinsic_matrix)
 
 class ImageListener(Node):
     def __init__(self, topic, camera):
@@ -264,6 +280,23 @@ class TagDetectionListener(Node):
         if np.any(self.camera.VideoFrame != 0):
             self.camera.drawTagsInRGBImage(msg)
 
+
+class JBCalibrateListener(Node):
+    def __init__(self, topic, camera):
+        super().__init__('JB_calibrate_listener')
+        self.topic = topic
+        self.tag_sub = self.create_subscription(
+            Int32,
+            topic,
+            self.callback,
+            10
+        )
+        self.camera = camera
+
+    def callback(self, msg):
+        print(22222222)
+        if msg.data == 1:
+            self.camera.calibrateFromAprilTag(msg)
 
 class CameraInfoListener(Node):
     def __init__(self, topic, camera):
@@ -306,18 +339,24 @@ class VideoThread(QThread):
         depth_topic = "/camera/aligned_depth_to_color/image_raw"
         camera_info_topic = "/camera/color/camera_info"
         tag_detection_topic = "/detections"
+        JB_calibrate_topic = "/JB_calibrate"
+
         image_listener = ImageListener(image_topic, self.camera)
         depth_listener = DepthListener(depth_topic, self.camera)
         camera_info_listener = CameraInfoListener(camera_info_topic,
                                                   self.camera)
         tag_detection_listener = TagDetectionListener(tag_detection_topic,
                                                       self.camera)
-        
+        JB_calibrate_listener = JBCalibrateListener(JB_calibrate_topic,
+                                                      self.camera)  
+
         self.executor = SingleThreadedExecutor()
         self.executor.add_node(image_listener)
         self.executor.add_node(depth_listener)
         self.executor.add_node(camera_info_listener)
         self.executor.add_node(tag_detection_listener)
+        self.executor.add_node(JB_calibrate_listener)
+
 
     def run(self):
         if __name__ == '__main__':
