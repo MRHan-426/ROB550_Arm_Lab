@@ -239,7 +239,11 @@ class Camera():
         # my_intrinsic_matrix = np.array([[966.4680463529985, 0.0, 647.860390835071],
         #                              [0.0, 956.7410588471818, 383.3760954393191],
         #                              [0.0, 0.0, 1.0]])
-        success, rvec, T = cv2.solvePnP(world_points, image_points, self.intrinsic_matrix, None)
+        my_intrinsic_matrix = np.array([[918.2490195188435, 0.0, 636.4533753942957],
+                                        [0.0, 912.0611927215057, 365.23840749139805],
+                                        [0.0, 0.0, 1.0]])
+        my_distortion = np.array([0.12255661041263047, -0.19338918906656302, 0.00411197288757392, 0.007337075149104217, 0.0])
+        success, rvec, T = cv2.solvePnP(world_points, image_points, my_intrinsic_matrix, my_distortion)
         R, _ = cv2.Rodrigues(rvec)
         self.extrinsic_matrix = np.concatenate((R, T), 1)
         self.extrinsic_matrix = np.vstack((self.extrinsic_matrix, [0,0,0,1]))
