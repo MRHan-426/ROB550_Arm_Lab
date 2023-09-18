@@ -233,11 +233,12 @@ class Camera():
 
             self.VideoFrame = modified_image
             # Compute transformation matrix M
-            if image_points.shape[0] != world_points.shape[0]:
-                print("ERROR: Image points do not match Camera points")
+
+            if image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
+                print("ERROR: AprilTag not enough, at least four")
                 return None
-            elif image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
-                print("ERROR: AprilTag not enough, at least three")
+            elif image_points.shape[0] != world_points.shape[0]:
+                print("ERROR: Image points do not match Camera points")
                 return None
             elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
                 transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
@@ -286,16 +287,14 @@ class Camera():
         image_points = np.array(self.tagsCenter).astype(np.float32)
         world_points = np.array(self.tag_locations_3D).astype(np.float32)
 
-        if image_points.shape[0] != world_points.shape[0]:
-            print("ERROR: Image points do not match Camera points")
+        if image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
+            print("ERROR: AprilTag not enough, at least four")
             return None
-        elif image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
-            print("ERROR: AprilTag not enough, at least three")
+        elif image_points.shape[0] != world_points.shape[0]:
+            print("ERROR: Image points do not match Camera points")
             return None
         elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
             success, rvec, T = cv2.solvePnP(world_points, image_points, self.intrinsic_matrix, self.distortion)
-        # elif image_points.shape[0] == 3 and world_points.shape[0] == 3:
-        #     success, rvec, T = cv2.solvePnP(world_points, image_points, self.intrinsic_matrix, self.distortion, flags=cv2.CV_ITERATIVE)
         
         R, _ = cv2.Rodrigues(rvec)
         self.extrinsic_matrix = np.concatenate((R, T), 1)

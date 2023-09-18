@@ -76,8 +76,8 @@ def detectBlocksInDepthImage(img):
                 TODO: Implement a blob detector to find blocks in the depth image
     """
     pass
-# For test of Forward Kinematics
+
 if __name__ == '__main__':
 
-    img = '1.jpg'
+    img = '../data/1.jpg'
     blockDetector(img)

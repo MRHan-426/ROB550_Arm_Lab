@@ -1,6 +1,6 @@
 # armlab-f23
 
-## 📌 9. Project Log & Todo List
+## 📌 Project Log & Todo List
 
 
 - [x] 1. Check Point 1.
