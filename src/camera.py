@@ -207,33 +207,29 @@ class Camera():
         """
         if self.cameraCalibrated == True:
             modified_image = self.VideoFrame.copy()
+            # # Draw Grid of Points
+            X, Y = np.meshgrid(self.grid_x_points, self.grid_y_points)
+            grid_points = np.vstack((X.ravel(), Y.ravel(), np.ones_like(X).ravel(), np.ones_like(X).ravel())).astype(np.float32)
+            camera_points = np.dot(self.extrinsic_matrix[0:3, :], grid_points)
+            pixel_points = np.dot(self.intrinsic_matrix, camera_points)
+            pixel_x = pixel_points[0, :] / pixel_points[2, :]
+            pixel_y = pixel_points[1, :] / pixel_points[2, :]
+            for px, py in zip(pixel_x, pixel_y):
+                point_pos = (int(px), int(py))
+                cv2.circle(modified_image, point_pos, 3, (0, 255, 0), thickness=-1)
+            self.VideoFrame = modified_image
+
+
+    def birdEyesViewInGridFrame(self):
+        """!
+        @brief      Use affline transformation to draw bird-eyes view in the GridFrame (User2 in GUI)
+
+        """
+        if self.cameraCalibrated == True:
+            modified_image = self.VideoFrame.copy()
             image_points = np.array(self.tagsCenter).astype(np.float32)
             world_points = np.array(self.tag_locations_2D).astype(np.float32)
-            # # Draw Grid of Points
-            for x in self.grid_x_points:
-                for y in self.grid_y_points:
-                    world_point = np.array([x,y,1,1]).reshape(4,1).astype(np.float32)
-                    camera_point = np.dot(self.extrinsic_matrix[0:3,:], world_point) # 3x1
-                    pixel_point = np.dot(self.intrinsic_matrix, camera_point)
-                    pixel_x = pixel_point[0] / pixel_point[2]
-                    pixel_y = pixel_point[1] / pixel_point[2]
-                    # TODO: Precise
-                    point_pos = [int(pixel_x), int(pixel_y)]
-                    cv2.circle(modified_image, point_pos, 3, (0, 255, 0), thickness=-1)
-
-            # world_point = np.vstack((self.grid_points, np.ones((2,14,21)))).astype(np.float32)
-            # camera_points = np.einsum('ij,jklm->iklm',self.extrinsic_matrix[0:3, :], world_point.reshape(4,1,14,21))
-            # pixel_points = np.dot(self.intrinsic_matrix, camera_points)
-            # pixel_points[0,:,:] /= pixel_points[2,:,:]
-            # pixel_points[1,:,:] /= pixel_points[2,:,:]
-            # pixel_points = pixel_points[0:2,:,:].astype(int)
-            # for x_pixel in range(pixel_points.shape[1]):
-            #     for y_pixel in range(pixel_points.shape[2]):
-            #         cv2.circle(modified_image, (pixel_points[0,x_pixel,y_pixel], pixel_points[1,x_pixel,y_pixel]), 3, (0, 255, 0), thickness=-1)
-
-            self.VideoFrame = modified_image
             # Compute transformation matrix M
-
             if image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
                 print("ERROR: AprilTag not enough, at least four")
                 return None
@@ -433,6 +429,7 @@ class VideoThread(QThread):
                 depth_frame = self.camera.convertQtDepthFrame()
                 tag_frame = self.camera.convertQtTagImageFrame()
                 self.camera.projectGridInRGBImage()
+                self.camera.birdEyesViewInGridFrame()
                 grid_frame = self.camera.convertQtGridFrame()
                 if ((rgb_frame != None) & (depth_frame != None)):
                     self.updateFrame.emit(
