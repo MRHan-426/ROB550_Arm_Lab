@@ -31,8 +31,7 @@ class StateMachine():
         self.next_state = "idle"
         self.remembered_waypoint = []
         self.intrinsic_matrix = self.camera.intrinsic_matrix
-        self.extrinsic_matrix = np.eye(4)
-        self.tag_locations = self.camera.tag_locations
+        self.extrinsic_matrix = self.camera.extrinsic_matrix
         self.csv_file_path = "/home/student_pm/armlab-f23/src/example.csv"
         self.waypoints = [
                           [-np.pi/2,            -0.5,         -0.3,              0.0,         0.0, 1],
@@ -159,6 +158,10 @@ class StateMachine():
         else:
             curr_pos = self.rxarm.get_positions()
             curr_pos = np.append(curr_pos,self.remembered_waypoint[-1][-1])
+            print("======================================================")
+            print("WayPoint Recorded:")
+            print(curr_pos)
+            print("======================================================")
             self.remembered_waypoint.append(curr_pos)
         self.next_state = "idle"
 
@@ -211,7 +214,7 @@ class StateMachine():
 
         for n in self.remembered_waypoint[1:]:
             self.rxarm.set_positions(n[:-1])
-            time.sleep(3)
+            time.sleep(1.5)
             if not n[-1]:
                 self.rxarm.gripper.grasp()
                 time.sleep(0.3)
@@ -235,18 +238,8 @@ class StateMachine():
         self.status_message = "Calibration - Completed Calibration"
 
         msg = Int32()
-        if self.camera.cameraCalibrated == False:
-            msg.data = 1
-            self.calibrate_pub.publish(msg)
-            print(1111111)
-        else:
-            print("calibration Done")
-
-    # def tag_callback(self, msg):
-    #     # calculate extrisic
-    #     self.extrinsic_matrix = self.camera.calibrateFromAprilTag(msg)
-    #     print("Calibrate Done")
-    #     print(self.extrinsic_matrix)
+        msg.data = 1
+        self.calibrate_pub.publish(msg)
 
 
     """ TODO """

@@ -18,6 +18,12 @@ from sensor_msgs.msg import Image, CameraInfo
 from apriltag_msgs.msg import *
 from cv_bridge import CvBridge, CvBridgeError
 
+INTRINISC_MATRIX = np.array([[918.2490195188435, 0.0, 636.4533753942957],
+                            [0.0, 912.0611927215057, 365.23840749139805],
+                            [0.0, 0.0, 1.0]])
+
+DISTORTION = np.array([0.12255661041263047, -0.19338918906656302, 0.00411197288757392, 0.007337075149104217, 0.0])
+
 class Camera():
     """!
     @brief      This class describes a camera.
@@ -36,20 +42,25 @@ class Camera():
         self.DepthFrameRGB = np.zeros((720,1280, 3)).astype(np.uint8)
         self.tagsCenter = []
 
-
         # mouse clicks & calibration variables
         self.cameraCalibrated = False
-        self.intrinsic_matrix = np.eye(3)
+        self.intrinsic_matrix = INTRINISC_MATRIX
         self.extrinsic_matrix = np.eye(4)
+        self.distortion = DISTORTION
+        self.use_default_intrinisc_matrix = False
         self.last_click = np.array([0, 0])
         self.new_click = False
         self.rgb_click_points = np.zeros((5, 2), int)
         self.depth_click_points = np.zeros((5, 2), int)
-        self.grid_x_points = np.arange(-450, 500, 50)
+        self.grid_x_points = np.arange(-500, 501, 50)
         self.grid_y_points = np.arange(-175, 525, 50)
         self.grid_points = np.array(np.meshgrid(self.grid_x_points, self.grid_y_points))
         self.tag_detections = np.array([])
-        self.tag_locations = [[-250, -25, 0], [250, -25, 0], [250, 275, 0], [-250, 275, 0]]
+        self.tag_locations_3D = [[-250, -25, 0], [250, -25, 0], [250, 275, 0], [-250, 275, 0]]
+        # self.tag_locations_2D = [[-250, -25], [250, -25], [250, 275], [-250, 275]]
+        self.tag_locations_2D = [[425, 200], [925, 200], [925, 500], [425, 500]]
+
+
         """ block info """
         self.block_contours = np.array([])
         self.block_detections = np.array([])
@@ -155,7 +166,7 @@ class Camera():
         """
         pts1 = coord1[0:3].astype(np.float32)
         pts2 = coord2[0:3].astype(np.float32)
-        print(cv2.getAffineTransform(pts1, pts2))
+        print(cv2.getAffineTransform(pts1, pts2).shape)
         return cv2.getAffineTransform(pts1, pts2)
 
     def loadCameraCalibration(self, file):
@@ -194,7 +205,47 @@ class Camera():
                     and draw on self.GridFrame the grid intersection points from self.grid_points
                     (hint: use the cv2.circle function to draw circles on the image)
         """
-        pass
+        if self.cameraCalibrated == True:
+            modified_image = self.VideoFrame.copy()
+            image_points = np.array(self.tagsCenter).astype(np.float32)
+            world_points = np.array(self.tag_locations_2D).astype(np.float32)
+            # # Draw Grid of Points
+            for x in self.grid_x_points:
+                for y in self.grid_y_points:
+                    world_point = np.array([x,y,1,1]).reshape(4,1).astype(np.float32)
+                    camera_point = np.dot(self.extrinsic_matrix[0:3,:], world_point) # 3x1
+                    pixel_point = np.dot(self.intrinsic_matrix, camera_point)
+                    pixel_x = pixel_point[0] / pixel_point[2]
+                    pixel_y = pixel_point[1] / pixel_point[2]
+                    # TODO: Precise
+                    point_pos = [int(pixel_x), int(pixel_y)]
+                    cv2.circle(modified_image, point_pos, 3, (0, 255, 0), thickness=-1)
+
+            # world_point = np.vstack((self.grid_points, np.ones((2,14,21)))).astype(np.float32)
+            # camera_points = np.einsum('ij,jklm->iklm',self.extrinsic_matrix[0:3, :], world_point.reshape(4,1,14,21))
+            # pixel_points = np.dot(self.intrinsic_matrix, camera_points)
+            # pixel_points[0,:,:] /= pixel_points[2,:,:]
+            # pixel_points[1,:,:] /= pixel_points[2,:,:]
+            # pixel_points = pixel_points[0:2,:,:].astype(int)
+            # for x_pixel in range(pixel_points.shape[1]):
+            #     for y_pixel in range(pixel_points.shape[2]):
+            #         cv2.circle(modified_image, (pixel_points[0,x_pixel,y_pixel], pixel_points[1,x_pixel,y_pixel]), 3, (0, 255, 0), thickness=-1)
+
+            self.VideoFrame = modified_image
+            # Compute transformation matrix M
+            if image_points.shape[0] != world_points.shape[0]:
+                print("ERROR: Image points do not match Camera points")
+                return None
+            elif image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
+                print("ERROR: AprilTag not enough, at least three")
+                return None
+            elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
+                transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
+                # Create Birds-eye view
+                modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (1280, 720))
+                self.GridFrame = cv2.flip(modified_image, 0)
+        else:
+            pass
      
     def drawTagsInRGBImage(self, msg):
         """
@@ -233,23 +284,29 @@ class Camera():
 
     def calibrateFromAprilTag(self, msg):
         image_points = np.array(self.tagsCenter).astype(np.float32)
-        world_points = np.array(self.tag_locations).astype(np.float32)
-        # print(image_points)
-        # print(world_points)
-        # my_intrinsic_matrix = np.array([[966.4680463529985, 0.0, 647.860390835071],
-        #                              [0.0, 956.7410588471818, 383.3760954393191],
-        #                              [0.0, 0.0, 1.0]])
-        my_intrinsic_matrix = np.array([[918.2490195188435, 0.0, 636.4533753942957],
-                                        [0.0, 912.0611927215057, 365.23840749139805],
-                                        [0.0, 0.0, 1.0]])
-        my_distortion = np.array([0.12255661041263047, -0.19338918906656302, 0.00411197288757392, 0.007337075149104217, 0.0])
-        success, rvec, T = cv2.solvePnP(world_points, image_points, my_intrinsic_matrix, my_distortion)
+        world_points = np.array(self.tag_locations_3D).astype(np.float32)
+
+        if image_points.shape[0] != world_points.shape[0]:
+            print("ERROR: Image points do not match Camera points")
+            return None
+        elif image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
+            print("ERROR: AprilTag not enough, at least three")
+            return None
+        elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
+            success, rvec, T = cv2.solvePnP(world_points, image_points, self.intrinsic_matrix, self.distortion)
+        # elif image_points.shape[0] == 3 and world_points.shape[0] == 3:
+        #     success, rvec, T = cv2.solvePnP(world_points, image_points, self.intrinsic_matrix, self.distortion, flags=cv2.CV_ITERATIVE)
+        
         R, _ = cv2.Rodrigues(rvec)
         self.extrinsic_matrix = np.concatenate((R, T), 1)
         self.extrinsic_matrix = np.vstack((self.extrinsic_matrix, [0,0,0,1]))
-
         print("Calibrition done")
+        print("======================================================")
+        print("Extrinsic Matrix:")
         print(self.extrinsic_matrix)
+        print("======================================================")
+        self.cameraCalibrated = True
+
 
 class ImageListener(Node):
     def __init__(self, topic, camera):
@@ -298,7 +355,6 @@ class JBCalibrateListener(Node):
         self.camera = camera
 
     def callback(self, msg):
-        print(22222222)
         if msg.data == 1:
             self.camera.calibrateFromAprilTag(msg)
 
@@ -310,8 +366,10 @@ class CameraInfoListener(Node):
         self.camera = camera
 
     def callback(self, data):
-        self.camera.intrinsic_matrix = np.reshape(data.k, (3, 3))
-        # print(self.camera.intrinsic_matrix)
+        if self.camera.use_default_intrinisc_matrix == True:
+            self.camera.intrinsic_matrix = np.reshape(data.k, (3, 3))
+        else:
+            self.camera.intrinsic_matrix = INTRINISC_MATRIX
 
 
 class DepthListener(Node):

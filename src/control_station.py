@@ -238,52 +238,42 @@ class Gui(QMainWindow):
 
             intrinsic_matrix = self.camera.intrinsic_matrix
             extrinsic_matrix = self.camera.extrinsic_matrix
-            # print(extrinsic_matrix)
-            # intrinsic_matrix = np.array([[966.4680463529985, 0.0, 647.860390835071],
-            #                             [0.0, 956.7410588471818, 383.3760954393191],
-            #                             [0.0, 0.0, 1.0]])
-            intrinsic_matrix = np.array([[918.2490195188435, 0.0, 636.4533753942957], 
-                                        [0.0, 912.0611927215057, 365.23840749139805], 
-                                        [0.0, 0.0, 1.0]])
-
-            ## non-JB
-            # t = np.array([0, 365, 1000])
-            # R = np.array([[0.999, 0.0094, -0.0426],
-            #               [0.0, -0.9763,  -0.2164],
-            #               [-0.0436, 0.2162, -0.9754]])
-
-            # u = pt.x()
-            # v = pt.y()
-
-            # fx, fy = intrinsic_matrix[0, 0], intrinsic_matrix[1, 1]
-            # cx, cy = intrinsic_matrix[0, 2], intrinsic_matrix[1, 2]
             
-            # x_prime = (u - cx) / fx
-            # y_prime = (v - cy) / fy
+            if self.camera.cameraCalibrated == True:
+                T = extrinsic_matrix[:,3]
+                R = extrinsic_matrix[:,0:3]
 
-            # X_c = z * x_prime
-            # Y_c = z * y_prime
-            # Z_c = z
-            # P_c = np.array([X_c, Y_c, Z_c]).reshape(3, 1)
-            # t = t.reshape(3,1)
+                K2 = extrinsic_matrix
+                K1 = intrinsic_matrix
 
-            # P_w = R @ P_c + t
+                P_w =  np.linalg.inv(K2) @ np.vstack((z * np.linalg.inv(K1) @ np.array([[pt.x()],[pt.y()],[1]]), 1))
+            
+            else: # use hand-calibrited parameters
+                t = np.array([0, 365, 1000])
+                R = np.array([[0.999, 0.0094, -0.0426],
+                            [0.0, -0.9763,  -0.2164],
+                            [-0.0436, 0.2162, -0.9754]])
 
-            # JB
-            T = extrinsic_matrix[:,3]
-            R = extrinsic_matrix[:,0:3]
+                u = pt.x()
+                v = pt.y()
 
-            # K2 = np.vstack((extrinsic_matrix, [0,0,0,1]))
-            K2 = extrinsic_matrix
-            K1 = intrinsic_matrix
-            print(1, K1.shape)
-            print(2, K2.shape)
+                fx, fy = intrinsic_matrix[0, 0], intrinsic_matrix[1, 1]
+                cx, cy = intrinsic_matrix[0, 2], intrinsic_matrix[1, 2]
+                
+                x_prime = (u - cx) / fx
+                y_prime = (v - cy) / fy
 
-            P_w =  np.linalg.inv(K2) @ np.vstack((z * np.linalg.inv(K1) @ np.array([[pt.x()],[pt.y()],[1]]), 1))
+                X_c = z * x_prime
+                Y_c = z * y_prime
+                Z_c = z
+                P_c = np.array([X_c, Y_c, Z_c]).reshape(3, 1)
+                t = t.reshape(3,1)
+
+                P_w = R @ P_c + t
+
             self.ui.rdoutMouseWorld.setText("(%.0f,%.0f,%.0f)" %
                                              (P_w[0], P_w[1], P_w[2]))
       
-
 
     def calibrateMousePress(self, mouse_event):
         """!
