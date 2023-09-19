@@ -33,8 +33,7 @@ class StateMachine():
         self.intrinsic_matrix = self.camera.intrinsic_matrix
         self.extrinsic_matrix = self.camera.extrinsic_matrix
         self.csv_file_path = "/home/student_pm/armlab-f23/src/example.csv"
-        self.waypoints = [
-                          [-np.pi/2,            -0.5,         -0.3,              0.0,         0.0, 1],
+        self.waypoints = [[-np.pi/2,            -0.5,         -0.3,              0.0,         0.0, 1],
                           [0.75*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
                           [0.5*-np.pi/2,        -0.5,         -0.3,        np.pi / 2,         0.0, 1],
                           [0.25*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
@@ -171,12 +170,16 @@ class StateMachine():
         """
         self.status_message = "State: close gripper"
         self.current_state = "close_gripper"
-        self.remembered_waypoint[-1][-1] = 0
-        self.rxarm.enable_torque()
-        time.sleep(0.2)
-        self.rxarm.gripper.grasp()
-        time.sleep(0.5)
-        self.rxarm.disable_torque()
+        if self.remembered_waypoint != []:
+            self.remembered_waypoint[-1][-1] = 0
+            self.rxarm.enable_torque()
+            time.sleep(0.2)
+            self.rxarm.gripper.grasp()
+            time.sleep(0.5)
+            self.rxarm.disable_torque()
+        else:
+            self.rxarm.gripper.grasp()
+            time.sleep(0.5)
         self.next_state = "idle"
 
     def open_gripper(self):
@@ -186,14 +189,15 @@ class StateMachine():
         self.status_message = "State: open gripper"
         self.current_state = "open_gripper"
         if self.remembered_waypoint == []:
-            self.remembered_waypoint.append(self.waypoints[0])
+            self.rxarm.gripper.release()
+            time.sleep(1)
         else:
             self.remembered_waypoint[-1][-1] = 1
-        self.rxarm.enable_torque()
-        time.sleep(0.2)
-        self.rxarm.gripper.release()
-        time.sleep(1)
-        self.rxarm.disable_torque()
+            self.rxarm.enable_torque()
+            time.sleep(0.2)
+            self.rxarm.gripper.release()
+            time.sleep(1)
+            self.rxarm.disable_torque()
         self.next_state = "idle"
         
     def replay(self):

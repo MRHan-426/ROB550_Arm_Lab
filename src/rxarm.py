@@ -17,6 +17,7 @@ from kinematics import FK_dh, FK_pox, get_pose_from_T
 import time
 import csv
 import sys, os
+import kinematics
 from std_msgs.msg import Int32
 
 from builtins import super
@@ -190,11 +191,23 @@ class RXArm(InterbotixManipulatorXS):
 
     def get_ee_pose(self):
         """!
-        @brief      TODO Get the EE pose.
+        @brief      TODO(DONE) Get the EE pose.
 
         @return     The EE pose as [x, y, z, phi] or as needed.
         """
-        return [0, 0, 0, 0]
+        #compute the end effector position
+        pos = self.get_positions()
+        joint_angles = [pos[0],-pos[1],-pos[2],-pos[3],pos[4]]
+        # dh_config_file = "/home/student_pm/armlab-f23/config/rx200_dh.csv"
+        dh_config_file = "../config/rx200_dh.csv"
+
+        dh_params = parse_dh_param_file(dh_config_file)
+        pos_matrix = kinematics.FK_dh(dh_params=dh_params, joint_angles=joint_angles, link=5)
+        end_x = pos_matrix[0][3]
+        end_y = pos_matrix[1][3]
+        end_z = pos_matrix[2][3]
+        return [end_x, end_y, end_z, 0]
+
 
     @_ensure_initialized
     def get_wrist_pose(self):

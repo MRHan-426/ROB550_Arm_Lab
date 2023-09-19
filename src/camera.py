@@ -56,7 +56,7 @@ class Camera():
         self.grid_y_points = np.arange(-175, 525, 50)
         self.grid_points = np.array(np.meshgrid(self.grid_x_points, self.grid_y_points))
         self.tag_detections = np.array([])
-        self.tag_locations_3D = [[-250, -25, 0], [250, -25, 0], [250, 275, 0], [-250, 275, 0]]
+        self.tag_locations_3D = [[-250, -25, 0],[250, -25, 0],[250, 275, 0],[-250, 275, 0],[-250,125,150],[350,25,150]]
         # self.tag_locations_2D = [[-250, -25], [250, -25], [250, 275], [-250, 275]]
         self.tag_locations_2D = [[425, 200], [925, 200], [925, 500], [425, 500]]
 
@@ -209,7 +209,7 @@ class Camera():
             modified_image = self.VideoFrame.copy()
             # # Draw Grid of Points
             X, Y = np.meshgrid(self.grid_x_points, self.grid_y_points)
-            grid_points = np.vstack((X.ravel(), Y.ravel(), np.ones_like(X).ravel(), np.ones_like(X).ravel())).astype(np.float32)
+            grid_points = np.vstack((X.ravel(), Y.ravel(), (np.ones_like(X).ravel()), np.ones_like(X).ravel())).astype(np.float32)
             camera_points = np.dot(self.extrinsic_matrix[0:3, :], grid_points)
             pixel_points = np.dot(self.intrinsic_matrix, camera_points)
             pixel_x = pixel_points[0, :] / pixel_points[2, :]
@@ -227,7 +227,7 @@ class Camera():
         """
         if self.cameraCalibrated == True:
             modified_image = self.VideoFrame.copy()
-            image_points = np.array(self.tagsCenter).astype(np.float32)
+            image_points = np.array(self.tagsCenter[:4]).astype(np.float32)
             world_points = np.array(self.tag_locations_2D).astype(np.float32)
             # Compute transformation matrix M
             if image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
@@ -235,6 +235,7 @@ class Camera():
                 return None
             elif image_points.shape[0] != world_points.shape[0]:
                 print("ERROR: Image points do not match Camera points")
+                print(image_points.shape)
                 return None
             elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
                 transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
@@ -275,6 +276,7 @@ class Camera():
             # Draw ID
             ID_pos = [center[0]+20,center[1]-20]
             ID = "ID: " + str(detection.id)
+            #print(ID)
             cv2.putText(modified_image,ID,ID_pos,cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,0,0),thickness=2)
 
         self.TagImageFrame = modified_image
@@ -363,6 +365,7 @@ class CameraInfoListener(Node):
     def callback(self, data):
         if self.camera.use_default_intrinisc_matrix == True:
             self.camera.intrinsic_matrix = np.reshape(data.k, (3, 3))
+            self.camera.distortion = np.array(data.d)
         else:
             self.camera.intrinsic_matrix = INTRINISC_MATRIX
 

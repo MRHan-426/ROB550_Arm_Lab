@@ -232,7 +232,8 @@ if __name__ == '__main__':
     pox_config_file = "config/rx200_pox.csv"
     m_mat, s_lst = parse_pox_param_file(pox_config_file)
     # -0.73170888  0.320602    0.53689331 -0.0076699   0.01073787 
-    joint_angles = [clamp(-0.73170888),clamp(0.320602),clamp(0.53689331),clamp(-0.0076699),clamp(0.01073787)]
+    # -0.72403896  0.32980588  0.35434958  0.39576706  0.01227185
+    joint_angles = [clamp(-0.72403896),clamp(-0.32980588),clamp(-0.35434958),clamp(-0.39576706),clamp(0.01227185)]
 
     T_DH = FK_dh(dh_params=dh_params, joint_angles=joint_angles, link=5)
     T_POX = FK_pox(joint_angles=joint_angles, m_mat=m_mat,s_lst=s_lst)
