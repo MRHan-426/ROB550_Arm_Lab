@@ -244,6 +244,8 @@ class StateMachine():
         msg = Int32()
         msg.data = 1
         self.calibrate_pub.publish(msg)
+        msg.data = 0
+        self.calibrate_pub.publish(msg)
 
 
     """ TODO """
