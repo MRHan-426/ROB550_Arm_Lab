@@ -33,16 +33,17 @@ class StateMachine():
         self.intrinsic_matrix = self.camera.intrinsic_matrix
         self.extrinsic_matrix = self.camera.extrinsic_matrix
         self.csv_file_path = "/home/student_pm/armlab-f23/src/example.csv"
-        self.waypoints = [[-np.pi/2,            -0.5,         -0.3,              0.0,         0.0, 1],
-                          [0.75*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
-                          [0.5*-np.pi/2,        -0.5,         -0.3,        np.pi / 2,         0.0, 1],
-                          [0.25*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
-                          [0.0,                  0.0,          0.0,              0.0,         0.0, 1],
-                          [0.25*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
-                          [0.5*np.pi/2,          0.5,          0.3,         -np.pi/3,         0.0, 1],
-                          [0.75*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
-                          [np.pi/2,              0.5,          0.3,         -np.pi/3,         0.0, 1],
-                          [0.0,                  0.0,          0.0,              0.0,         0.0, 1]]
+        self.waypoints = [[-0.7378150601204649 ,  0.7514994246667079 ,  -0.6479373977680756 ,  1.4672342998962642 ,  0.8329812666744316, 1]]
+                        # [[-np.pi/2,            -0.5,         -0.3,              0.0,         0.0, 1],
+                        #   [0.75*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
+                        #   [0.5*-np.pi/2,        -0.5,         -0.3,        np.pi / 2,         0.0, 1],
+                        #   [0.25*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
+                        #   [0.0,                  0.0,          0.0,              0.0,         0.0, 1],
+                        #   [0.25*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
+                        #   [0.5*np.pi/2,          0.5,          0.3,         -np.pi/3,         0.0, 1],
+                        #   [0.75*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
+                        #   [np.pi/2,              0.5,          0.3,         -np.pi/3,         0.0, 1],
+                        #   [0.0,                  0.0,          0.0,              0.0,         0.0, 1]]
         self.node = rclpy.create_node('JB_node')
         
         self.publisher = self.node.create_publisher(
@@ -138,6 +139,7 @@ class StateMachine():
         self.status_message = "State: Execute - Executing motion plan"
         self.current_state = "execute"
         for n in self.waypoints:
+            print("reached")
             self.rxarm.set_positions(n[:-1])
             time.sleep(3)
         self.next_state = "idle"

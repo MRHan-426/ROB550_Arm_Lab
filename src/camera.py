@@ -194,7 +194,35 @@ class Camera():
 
                     TODO: Implement a blob detector to find blocks in the depth image
         """
-        pass
+        kernel_size = 5
+        edges = cv2.Canny((self.DepthFrameRaw-1000).astype(np.uint8), 20, 40)
+        blurred_edges = cv2.GaussianBlur(edges,(kernel_size,kernel_size),0)
+        cv2.imshow("Blurred edges",blurred_edges)
+        cv2.imshow("original edges",edges)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        # contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # centroids = []  # To store the centroids of blobs
+        # for contour in contours:
+        #     M = cv2.moments(contour)
+        #     if M["m00"] != 0:
+        #         cX = int(M["m10"] / M["m00"])
+        #         cY = int(M["m01"] / M["m00"])
+        #     else:
+        #         cX, cY = 0, 0
+        #     centroids.append((cX, cY))
+        # # for centroid in centroids:
+        #     # cv2.circle(self.VideoFrame, centroid, 5, (0, 0, 255), -1)  # Draw a red circle at the centroid position
+        
+        # blocks = []
+        # for contour in contours:
+        #     epsilon = 0.06 * cv2.arcLength(contour, True)
+        #     approx = cv2.approxPolyDP(contour, epsilon, True)
+        #     if len(approx) == 4:
+        #         blocks.append(approx)
+        #         # np.append(self.block_contours,approx)
+        # cv2.drawContours(self.VideoFrame, blocks, -1,(255, 0, 255), 3)
+        # cv2.imshow("Block Contour",self.VideoFrame)
 
     def projectGridInRGBImage(self):
         """!
@@ -282,6 +310,7 @@ class Camera():
         self.TagImageFrame = modified_image
 
     def calibrateFromAprilTag(self, msg):
+        self.detectBlocksInDepthImage()
         image_points = np.array(self.tagsCenter).astype(np.float32)
         world_points = np.array(self.tag_locations_3D).astype(np.float32)
 

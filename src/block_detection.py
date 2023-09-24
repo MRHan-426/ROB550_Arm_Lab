@@ -69,15 +69,23 @@ def blockDetector(img):
     cv2.destroyAllWindows()
     
 
-def detectBlocksInDepthImage(img):
+def detectBlocksInDepthImage(rgb_img,depth_img):
     """!
     @brief      Detect blocks from depth
 
                 TODO: Implement a blob detector to find blocks in the depth image
     """
-    pass
+    depth_img = cv2.imread(depth_img,cv2.IMREAD_GRAYSCALE)
+    edges = cv2.Canny(depth_img.astype(np.uint8), 20, 30)
+    kernel_size = 5
+    blurred_edges = cv2.GaussianBlur(edges,(kernel_size,kernel_size),0)
+    cv2.imshow("Blurred edges",blurred_edges)
+    cv2.imshow("original edges",edges)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
 
 if __name__ == '__main__':
-
-    img = '../data/1.jpg'
-    blockDetector(img)
+    rgb_img = '../data/Deapth_RGB/RGB_image3.png'
+    depth_img = '../data/Deapth_RGB/depth_image3.png'
+    detectBlocksInDepthImage(rgb_img,depth_img)
