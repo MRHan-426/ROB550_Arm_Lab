@@ -6,7 +6,7 @@ def blockDetector(img):
     @brief      Detect blocks from rgb
 
                 TODO: Implement your block detector here. You will need to locate blocks in 3D space and put their XYZ
-                locations in self.block_detections
+                locations in block_detections
     """
 
     # load the image
@@ -75,17 +75,39 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
 
                 TODO: Implement a blob detector to find blocks in the depth image
     """
-    depth_img = cv2.imread(depth_img,cv2.IMREAD_GRAYSCALE)
-    edges = cv2.Canny(depth_img.astype(np.uint8), 20, 30)
-    kernel_size = 5
-    blurred_edges = cv2.GaussianBlur(edges,(kernel_size,kernel_size),0)
-    cv2.imshow("Blurred edges",blurred_edges)
-    cv2.imshow("original edges",edges)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    depth_img = cv2.imread(depth_img, cv2.IMREAD_UNCHANGED)
+    INTRINISC_MATRIX = np.array([
+                        [918.2490195188435, 0.0, 636.4533753942957],
+                        [0.0, 912.0611927215057, 365.23840749139805],
+                        [0.0, 0.0, 1.0]])
+    extrinsic_matrix = np.array([
+                        [ 9.99581091e-01, -2.82705457e-02, -6.19823419e-03, 3.45427247e+01],
+                        [-2.62323435e-02, -9.75452033e-01, 2.18643994e-01, 1.32930439e+02],
+                        [-1.22272652e-02, -2.18389808e-01, -9.75785010e-01, 1.04360917e+03],
+                        [ 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
+                        ])
+    y = np.arange(depth_img.shape[0])
+    x = np.arange(depth_img.shape[1])
+    mesh_x, mesh_y = np.meshgrid(x, y)
+    Z = depth_img.astype(np.float32)
+    X = (mesh_x - INTRINISC_MATRIX[0, 2]) * Z / INTRINISC_MATRIX[0, 0]
+    Y = (mesh_y - INTRINISC_MATRIX[1, 2]) * Z / INTRINISC_MATRIX[1, 1]
 
+    homogeneous_coordinates = np.stack((X, Y, Z, np.ones_like(Z)), axis=-1)
+    P_c = homogeneous_coordinates.reshape(-1, 4).T
+    P_w = np.linalg.inv(extrinsic_matrix) @ P_c
+    points_3d = P_w.T[:, 2].reshape(depth_img.shape[0], depth_img.shape[1], 1)
+
+    cv2.imwrite("affline_depth.png", points_3d)
+    # edges = cv2.Canny(depth_img.astype(np.uint8), 20, 30)
+    # kernel_size = 5
+    # blurred_edges = cv2.GaussianBlur(edges,(kernel_size,kernel_size),0)
+    # cv2.imshow("Blurred edges",blurred_edges)
+    # cv2.imshow("original edges",edges)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-    rgb_img = '../data/Deapth_RGB/RGB_image3.png'
-    depth_img = '../data/Deapth_RGB/depth_image3.png'
+    rgb_img = 'data/Deapth_RGB/RGB_image3.png'
+    depth_img = 'data/Deapth_RGB/depth_image3.png'
     detectBlocksInDepthImage(rgb_img,depth_img)
