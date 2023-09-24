@@ -170,7 +170,6 @@ def to_s_matrix(w, v):
 
     @param      w     { parameter_description }
     @param      v     { parameter_description }
-
     @return     { description_of_the_return_value }
     """
     w1,w2,w3 = w
@@ -181,8 +180,7 @@ def to_s_matrix(w, v):
                 [0,0,0,0]])
     return s
 
-
-def IK_geometric(dh_params, pose):
+def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None,):
     """!
     @brief      Get all possible joint configs that produce the pose.
 
@@ -194,6 +192,82 @@ def IK_geometric(dh_params, pose):
     @return     All four possible joint configurations in a numpy array 4x4 where each row is one possible joint
                 configuration
     """
+    # m_mat & s_lst added by ourselves
+    # simple test version
+    # pose is [x,y,z,phi], where x,y,z is the target pos, phi is the target angle of last link from horizontal plane
+    # block_ori is the orientation of the block, 0 < block_ori < pi/2
+    l1 = 103.91
+    l2 = 200
+    l3 = 50
+    l4 = 205.73
+    l5 = 200
+    l6 = 175
+    alpha= np.arctan(l3/l2)
+    x = pose[0]
+    y = pose[1]
+    z = pose[2]
+    phi = np.deg2rad(pose[3])
+    
+    theta1 = np.arctan2(-x, y)
+
+    lastlink_unit = np.array([-np.sin(theta1)*np.cos(phi), np.cos(theta1)*np.cos(phi), -np.sin(phi)])
+    xc,yc,zc = pose[0:3]-l6*lastlink_unit
+
+    if np.sqrt(xc*xc + yc*yc + (zc - l1)*(zc - l1)) > (l4 + l5):
+        print("[IK ERROR] Unreachable Position || Cannot form <|")
+        return False, [0, 0, 0, 0, 0]
+    
+    r = np.sqrt(xc*xc + yc*yc) 
+    s = zc - l1
+    beta = np.arccos((l4*l4 + l5*l5 - r*r - s*s)/(2*l4*l5))
+    theta3 = np.pi/2 + alpha - beta
+    theta2 = np.pi/2 - alpha - np.arccos(r/(np.sqrt(r*r + s*s))) - np.arccos((l4*l4 + r*r + s*s - l5*l5)/(2*l4*np.sqrt(r*r + s*s)))
+    theta4 = phi - theta2 - theta3
+
+    # compute theta5 based on different situations
+    if block_ori is None:
+        theta5 = 0
+    elif block_ori < 0:
+        print("[IK ERROR Incorrect Block Orientation]")
+        return False, [0,0,0,0,0]
+    else:
+        # last link is more vertical than horizonatal, use vertical mode to grab
+        if phi > np.pi/4:
+            if theta1 > 0:
+                theta5 = theta1 - block_ori
+            else:
+                theta1_ref = -theta1
+                theta5 = np.pi/2 - theta1_ref - block_ori
+        # last link is more horizontal than vertical, use horizontal mode to grab
+        else:
+            theta5 = 0
+
+
+    # Moving Range Restriction
+    if theta1 >= np.pi or theta1 <= -np.pi:
+        print("[IK ERROR] Can't move to target angles")
+        return False, [0, 0, 0, 0, 0]
+    
+    if theta2 >= np.deg2rad(90) or theta2 <= -np.deg2rad(90):
+        print("[IK ERROR] Can't move to target angles")
+        return False, [0, 0, 0, 0, 0]
+
+    if theta3 >= np.deg2rad(90) or theta3 <= -np.deg2rad(90):
+        print("[IK ERROR] Can't move to target angles")
+        return False, [0, 0, 0, 0, 0]
+
+    if theta4 >= np.deg2rad(90) or theta4 <= -np.deg2rad(90):
+        print("[IK ERROR] Can't move to target angles")
+        return False, [0, 0, 0, 0, 0]
+
+    if theta5 >= np.pi or theta5 <= -np.pi:
+        print("[IK ERROR] Can't move to target angles")
+        return False, [0, 0, 0, 0, 0]
+    
+    
+    print("Success! The joint angles are: ", np.rad2deg(theta1), ", ", np.rad2deg(theta2), ", ", np.rad2deg(theta3), ", ", np.rad2deg(theta4), ", ", np.rad2deg(theta5), ", ")
+    print("Success! The joint angles(deg) are: ", theta1, ", ", theta2, ", ", theta3, ", ", theta4, ", ", theta5)
+    return True, [theta1,theta2,theta3,theta4,theta5]
     pass
 
 
@@ -232,17 +306,25 @@ if __name__ == '__main__':
     pox_config_file = "config/rx200_pox.csv"
     m_mat, s_lst = parse_pox_param_file(pox_config_file)
     # -0.73170888  0.320602    0.53689331 -0.0076699   0.01073787 
-    # -0.72403896  0.32980588  0.35434958  0.39576706  0.01227185
-    joint_angles = [clamp(-0.72403896),clamp(-0.32980588),clamp(-0.35434958),clamp(-0.39576706),clamp(0.01227185)]
+    # joint_angles = [clamp(-0.73170888),clamp(0.320602),clamp(0.53689331),clamp(-0.0076699),clamp(0.01073787)]
 
+  
+
+    # if np.allclose(T_DH, T_POX, rtol=1e-05, atol=1e-08):
+    #     print("POX and DH get the same result, mission complete.")
+    # else:
+    #     print("ERROR OCCURS")
+    #     print(f"DH Transform Matrix:\n {T_DH}")
+    #     print(f"POX Transform Matrix:\n {T_POX}")
+    IK, joint_pos = IK_geometric([250,275,20, 90],block_ori=0)
+    joint_angles = joint_pos
+    joint_angles[1] = -joint_angles[1]
+    joint_angles[2] = -joint_angles[2]
+    joint_angles[3] = -joint_angles[3]
     T_DH = FK_dh(dh_params=dh_params, joint_angles=joint_angles, link=5)
     T_POX = FK_pox(joint_angles=joint_angles, m_mat=m_mat,s_lst=s_lst)
+    print(f"DH Transform Matrix:\n {T_DH}")
 
-    if np.allclose(T_DH, T_POX, rtol=1e-05, atol=1e-08):
-        print("POX and DH get the same result, mission complete.")
-    else:
-        print("ERROR OCCURS")
-        print(f"DH Transform Matrix:\n {T_DH}")
-        print(f"POX Transform Matrix:\n {T_POX}")
+
     # file_path = "example.csv"
     # plot_joint_angles(file_path)
