@@ -101,8 +101,8 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
     P_w = np.linalg.inv(extrinsic_matrix) @ P_c
     points_3d = P_w.T[:, 2].reshape(depth_img.shape[0], depth_img.shape[1], 1)
 
-    cv2.imwrite("affline_depth.png", points_3d)
-    depth_data2 = cv2.imread("affline_depth.png")
+    cv2.imwrite("affline_depth4.png", points_3d)
+    depth_data2 = cv2.imread("affline_depth4.png")
     # y = np.arange(rgb_img.shape[0]) #720
     # x = np.arange(rgb_img.shape[1])
     # mesh_x, mesh_y = np.meshgrid(x, y)
@@ -121,57 +121,105 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
     
+   
+    #depth_data = points_3d
     depth_data = points_3d
-    cnt_image = rgb_img
-    lower = 10
-    upper = 50
-
+    gray_image = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2GRAY)
     
-    print(points_3d.shape)
-    print(depth_data2.shape)
+    # #  using depth image to detect contour
+    # lower = 10
+    # upper = 40
+    # mask = np.zeros_like(depth_data, dtype=np.uint8)
+    # cv2.rectangle(mask, (250,80),(1100,720), 255, cv2.FILLED)
+    # cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
+    # cv2.rectangle(depth_data2, (250,80),(1100,720), (255, 0, 0), 2)
+    # cv2.rectangle(depth_data2, (600,360),(730,710), (255, 0, 0), 2)
+    # thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
+    # contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    mask = np.zeros_like(depth_data, dtype=np.uint8)
-    cv2.rectangle(mask, (275,120),(1100,720), 255, cv2.FILLED)
-    cv2.rectangle(mask, (575,414),(723,720), 0, cv2.FILLED)
-    cv2.rectangle(depth_data2, (275,120),(1100,720), (255, 0, 0), 2)
-    cv2.rectangle(depth_data2, (575,414),(723,720), (255, 0, 0), 2)
-    thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # cv2.drawContours(depth_data2, contours, -1, (0,255,255), thickness=1)
+    # for contour in contours:
+    #     epsilon = 0.06 * cv2.arcLength(contour, True)
+    #     approx = cv2.approxPolyDP(contour, epsilon, True)
+    #     if len(approx) == 4:
+    #         cv2.drawContours(depth_data2, contour, -1, (0,255,255), thickness = 1)
+    #         theta = cv2.minAreaRect(contour)[2]
+    #         M = cv2.moments(contour)
+    #         cx = 1
+    #         cy = 1
+    #         if M['m00'] != 0:
+    #             cx = int(M['m10']/M['m00'])
+    #             cy = int(M['m01']/M['m00'])
+    #         cv2.circle(depth_data2,(cx,cy),3,(0,255,0),-1)
+    #         cv2.putText(depth_data2, str(int(theta)), (cx, cy), font, 0.5, (0,255,255), thickness=2)
+
+    # cv2.imshow("Image window", depth_data2)
+    # cv2.waitKey(0)
+
+
+
+    cv2.imwrite("affline_depth.png", points_3d)
+    points_3d = cv2.imread("affline_depth.png", cv2.IMREAD_GRAYSCALE)
+    kernel_size = 3
+    blurred_edges = cv2.GaussianBlur(points_3d,(kernel_size,kernel_size), 10)
+    cv2.imshow("Blurred edges",blurred_edges)
+    blurred_edges = cv2.Canny(blurred_edges,10, 25,apertureSize=3,L2gradient=True)
+    
+    lower = -1
+    upper = 2
+    # mask = np.zeros_like(blurred_edges, dtype=np.uint8)
+    # cv2.rectangle(mask, (250,80),(1100,720), 255, cv2.FILLED)
+    # cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
+    # cv2.rectangle(blurred_edges, (250,80),(1100,720), (255, 0, 0), 2)
+    # cv2.rectangle(blurred_edges, (600,360),(730,710), (255, 0, 0), 2)
+    # thresh = cv2.bitwise_and(cv2.inRange(blurred_edges, lower, upper), mask)
+    contours, _ = cv2.findContours(blurred_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # cv2.drawContours(rgb_img, contours, -1, (0,255,0), thickness = -1)
 
     for contour in contours:
-        cv2.drawContours(depth_data2, contour, -1, (0,255,255), thickness = 1)
-        theta = cv2.minAreaRect(contour)[2]
-        M = cv2.moments(contour)
-        print(M)
-        cx = 1
-        cy = 1
-        if M['m00'] != 0:
-            cx = int(M['m10']/M['m00'])
-            cy = int(M['m01']/M['m00'])
-        cv2.putText(depth_data2, str(int(theta)), (cx, cy), font, 0.5, (0,255,255), thickness=2)
+        epsilon = 0.1 * cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, epsilon, True)
+        if len(approx) == 2:
+            cv2.drawContours(rgb_img, contour, -1, (0,255,255), thickness = 1)
+            theta = cv2.minAreaRect(contour)[2]
+            M = cv2.moments(contour)
+            cx = 1
+            cy = 1
+            if M['m00'] != 0:
+                cx = int(M['m10']/M['m00'])
+                cy = int(M['m01']/M['m00'])
+            cv2.circle(rgb_img,(cx,cy),3,(0,255,0),-1)
+            cv2.putText(rgb_img, str(int(theta)), (cx, cy), font, 0.5, (0,255,0), thickness=1)
 
-    cv2.imshow("Image window", depth_data2)
+
+    
+
+    cv2.imshow("original edges",rgb_img)
+    print("blurred img shape is: ", blurred_edges)
+
+
     cv2.waitKey(0)
-
-
- 
-
-
-    # edges = cv2.Canny(depth_img.astype(np.uint8), 20, 30)
-    # kernel_size = 5
-    # blurred_edges = cv2.GaussianBlur(edges,(kernel_size,kernel_size),0)
-    # cv2.imshow("Blurred edges",blurred_edges)
-    # cv2.imshow("original edges",edges)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-
+    cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':
-    rgb_img = '../data/Deapth_RGB/RGB_image3.png'
-    depth_img = '../data/Deapth_RGB/depth_image3.png'
-    # rgb_img = 'C:\Users\Lynx1\Desktop\MS\A-Course\ROB 550\ROB550\data\Deapth_RGB\depth_image3.png'
-    # depth_img = 'C:\Users\Lynx1\Desktop\MS\A-Course\ROB 550\ROB550\data\Deapth_RGB\depth_image3.png'
+    rgb_img = '../data/Deapth_RGB/RGB_image4.png'
+    depth_img = '../data/Deapth_RGB/depth_image4.png'
     detectBlocksInDepthImage(rgb_img,depth_img)
+
+    # # test depth_image4
+    # depth_img3 = '../data/Deapth_RGB/depth_image3.png'
+    # depth_img4 = '../data/Deapth_RGB/depth_image4.png'
+    # depth_img3 = cv2.imread(depth_img3, cv2.IMREAD_UNCHANGED)
+    # depth_img4 = cv2.imread(depth_img4, cv2.IMREAD_UNCHANGED)
+
+    # counter = 0
+    # for row in depth_img3:
+    #     for element in row:
+    #         if element != 0:
+    #             counter +=1
+
+    # print(depth_img3)
+    # print("----------------------------------------------------------")
+    # print(depth_img4)
+    # print(counter)
    
