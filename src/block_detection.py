@@ -126,22 +126,69 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
     depth_data = points_3d
     gray_image = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2GRAY)
     
-    # #  using depth image to detect contour
-    # lower = 10
-    # upper = 40
-    # mask = np.zeros_like(depth_data, dtype=np.uint8)
-    # cv2.rectangle(mask, (250,80),(1100,720), 255, cv2.FILLED)
-    # cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
-    # cv2.rectangle(depth_data2, (250,80),(1100,720), (255, 0, 0), 2)
-    # cv2.rectangle(depth_data2, (600,360),(730,710), (255, 0, 0), 2)
-    # thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
-    # contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    #  using depth image to detect contour
+    lower = 10
+    upper = 40
+    mask = np.zeros_like(depth_data, dtype=np.uint8)
+    cv2.rectangle(mask, (220,80),(1080,720), 255, cv2.FILLED)
+    cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
+    cv2.rectangle(depth_data2, (220,80),(1080,720), (255, 0, 0), 2)
+    cv2.rectangle(depth_data2, (600,360),(730,710), (255, 0, 0), 2)
+    thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        epsilon = 0.06 * cv2.arcLength(contour, True)
+        approx = cv2.approxPolyDP(contour, epsilon, True)
+        print("approx.shape is: ", approx.shape)
+        if len(approx) == 4:
+            point1 = [approx[0,0,0],approx[0,0,1]]
+            point2 = [approx[2,0,0],approx[2,0,1]]
+            diagonal_length = np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
+            if diagonal_length > 20:             
+                # cv2.drawContours(depth_data2, contour, -1, (0,255,255), thickness = 1)
+                theta = cv2.minAreaRect(contour)[2]
+                M = cv2.moments(contour)
+                cx = 1
+                cy = 1
+                if M['m00'] != 0:
+                    cx = int(M['m10']/M['m00'])
+                    cy = int(M['m01']/M['m00'])
+
+                drawblock([cx,cy],diagonal_length,theta,depth_data2)
+
+
+                cv2.circle(depth_data2,(cx,cy),2,(0,255,0),-1)
+                cv2.putText(depth_data2, str(int(theta)), (cx, cy), font, 0.4, (0,255,0), thickness=1)
+
+    cv2.imshow("Image window", depth_data2)
+    cv2.waitKey(0)
+
+
+    # # Edge Detection Using Canny
+    # cv2.imwrite("affline_depth.png", points_3d)
+    # points_3d = cv2.imread("affline_depth.png", cv2.IMREAD_GRAYSCALE)
+    # kernel_size = 3
+    # blurred_edges = cv2.GaussianBlur(points_3d,(kernel_size,kernel_size), 10)
+    # cv2.imshow("Blurred edges",blurred_edges)
+    # blurred_edges = cv2.Canny(blurred_edges,10, 25,apertureSize=3,L2gradient=True)
+    
+    # lower = -1
+    # upper = 2
+    # # mask = np.zeros_like(blurred_edges, dtype=np.uint8)
+    # # cv2.rectangle(mask, (250,80),(1100,720), 255, cv2.FILLED)
+    # # cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
+    # # cv2.rectangle(blurred_edges, (250,80),(1100,720), (255, 0, 0), 2)
+    # # cv2.rectangle(blurred_edges, (600,360),(730,710), (255, 0, 0), 2)
+    # # thresh = cv2.bitwise_and(cv2.inRange(blurred_edges, lower, upper), mask)
+    # contours, _ = cv2.findContours(blurred_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # # cv2.drawContours(rgb_img, contours, -1, (0,255,0), thickness = -1)
 
     # for contour in contours:
-    #     epsilon = 0.06 * cv2.arcLength(contour, True)
+    #     epsilon = 0.1 * cv2.arcLength(contour, True)
     #     approx = cv2.approxPolyDP(contour, epsilon, True)
-    #     if len(approx) == 4:
-    #         cv2.drawContours(depth_data2, contour, -1, (0,255,255), thickness = 1)
+    #     if len(approx) == 2:
+    #         cv2.drawContours(rgb_img, contour, -1, (0,255,255), thickness = 1)
     #         theta = cv2.minAreaRect(contour)[2]
     #         M = cv2.moments(contour)
     #         cx = 1
@@ -149,56 +196,38 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
     #         if M['m00'] != 0:
     #             cx = int(M['m10']/M['m00'])
     #             cy = int(M['m01']/M['m00'])
-    #         cv2.circle(depth_data2,(cx,cy),3,(0,255,0),-1)
-    #         cv2.putText(depth_data2, str(int(theta)), (cx, cy), font, 0.5, (0,255,255), thickness=2)
+    #         cv2.circle(rgb_img,(cx,cy),3,(0,255,0),-1)
+    #         cv2.putText(rgb_img, str(int(theta)), (cx, cy), font, 0.5, (0,255,0), thickness=1)
 
-    # cv2.imshow("Image window", depth_data2)
+
+    
+
+    # cv2.imshow("original edges",rgb_img)
+    # print("blurred img shape is: ", blurred_edges)
+
+
     # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
+def drawblock(center,diag,orientation,img):
+    side = diag/np.sqrt(2)
+    half_side = side/2
+    orientation = np.deg2rad(orientation)
+    cos_angle = np.cos(orientation)
+    sin_angle = np.sin(orientation)
 
-
-    cv2.imwrite("affline_depth.png", points_3d)
-    points_3d = cv2.imread("affline_depth.png", cv2.IMREAD_GRAYSCALE)
-    kernel_size = 3
-    blurred_edges = cv2.GaussianBlur(points_3d,(kernel_size,kernel_size), 10)
-    cv2.imshow("Blurred edges",blurred_edges)
-    blurred_edges = cv2.Canny(blurred_edges,10, 25,apertureSize=3,L2gradient=True)
-    
-    lower = -1
-    upper = 2
-    # mask = np.zeros_like(blurred_edges, dtype=np.uint8)
-    # cv2.rectangle(mask, (250,80),(1100,720), 255, cv2.FILLED)
-    # cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
-    # cv2.rectangle(blurred_edges, (250,80),(1100,720), (255, 0, 0), 2)
-    # cv2.rectangle(blurred_edges, (600,360),(730,710), (255, 0, 0), 2)
-    # thresh = cv2.bitwise_and(cv2.inRange(blurred_edges, lower, upper), mask)
-    contours, _ = cv2.findContours(blurred_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # cv2.drawContours(rgb_img, contours, -1, (0,255,0), thickness = -1)
-
-    for contour in contours:
-        epsilon = 0.1 * cv2.arcLength(contour, True)
-        approx = cv2.approxPolyDP(contour, epsilon, True)
-        if len(approx) == 2:
-            cv2.drawContours(rgb_img, contour, -1, (0,255,255), thickness = 1)
-            theta = cv2.minAreaRect(contour)[2]
-            M = cv2.moments(contour)
-            cx = 1
-            cy = 1
-            if M['m00'] != 0:
-                cx = int(M['m10']/M['m00'])
-                cy = int(M['m01']/M['m00'])
-            cv2.circle(rgb_img,(cx,cy),3,(0,255,0),-1)
-            cv2.putText(rgb_img, str(int(theta)), (cx, cy), font, 0.5, (0,255,0), thickness=1)
-
+    corner1 = (int(center[0] - half_side * cos_angle - half_side * sin_angle),
+           int(center[1] + half_side * cos_angle - half_side * sin_angle))
+    corner2 = (int(center[0] + half_side * cos_angle - half_side * sin_angle),
+           int(center[1] + half_side * cos_angle + half_side * sin_angle))
+    corner3 = (int(center[0] + half_side * cos_angle + half_side * sin_angle),
+           int(center[1] - half_side * cos_angle + half_side * sin_angle))
+    corner4 = (int(center[0] - half_side * cos_angle + half_side * sin_angle),
+           int(center[1] - half_side * cos_angle - half_side * sin_angle))
+    square_coordinates = np.array([corner1, corner2, corner3, corner4], dtype=np.int32)
+    cv2.polylines(img, [square_coordinates], isClosed=True, color=(0, 255, 255), thickness=2)
 
     
-
-    cv2.imshow("original edges",rgb_img)
-    print("blurred img shape is: ", blurred_edges)
-
-
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':
