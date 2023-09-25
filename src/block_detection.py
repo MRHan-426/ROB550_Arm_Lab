@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 
+font = cv2.FONT_HERSHEY_SIMPLEX
+
 def blockDetector(img):
     """!
     @brief      Detect blocks from rgb
@@ -76,6 +78,7 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
                 TODO: Implement a blob detector to find blocks in the depth image
     """
     depth_img = cv2.imread(depth_img, cv2.IMREAD_UNCHANGED)
+    rgb_img = cv2.imread(rgb_img)
     INTRINISC_MATRIX = np.array([
                         [918.2490195188435, 0.0, 636.4533753942957],
                         [0.0, 912.0611927215057, 365.23840749139805],
@@ -99,6 +102,62 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
     points_3d = P_w.T[:, 2].reshape(depth_img.shape[0], depth_img.shape[1], 1)
 
     cv2.imwrite("affline_depth.png", points_3d)
+    depth_data2 = cv2.imread("affline_depth.png")
+    # y = np.arange(rgb_img.shape[0]) #720
+    # x = np.arange(rgb_img.shape[1])
+    # mesh_x, mesh_y = np.meshgrid(x, y)
+    # Z = depth_img.astype(np.float32)
+    # X = (mesh_x - INTRINISC_MATRIX[0, 2]) * Z / INTRINISC_MATRIX[0, 0]
+    # Y = (mesh_y - INTRINISC_MATRIX[1, 2]) * Z / INTRINISC_MATRIX[1, 1]
+
+    # homogeneous_coordinates = np.stack((X, Y, Z, np.ones_like(Z)), axis=-1)
+    # P_c = homogeneous_coordinates.reshape(-1, 4).T
+    # P_w = np.linalg.inv(extrinsic_matrix) @ P_c
+    # P_w = P_w.reshape((rgb_img.shape[0], rgb_img.shape[1], 4))
+
+    # cv2.imwrite("affline_rgb.png", points_3d)
+
+    # cv2.imshow("jb",points_3d)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    
+    depth_data = points_3d
+    cnt_image = rgb_img
+    lower = 10
+    upper = 50
+
+    
+    print(points_3d.shape)
+    print(depth_data2.shape)
+
+    mask = np.zeros_like(depth_data, dtype=np.uint8)
+    cv2.rectangle(mask, (275,120),(1100,720), 255, cv2.FILLED)
+    cv2.rectangle(mask, (575,414),(723,720), 0, cv2.FILLED)
+    cv2.rectangle(depth_data2, (275,120),(1100,720), (255, 0, 0), 2)
+    cv2.rectangle(depth_data2, (575,414),(723,720), (255, 0, 0), 2)
+    thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # cv2.drawContours(depth_data2, contours, -1, (0,255,255), thickness=1)
+
+    for contour in contours:
+        cv2.drawContours(depth_data2, contour, -1, (0,255,255), thickness = 1)
+        theta = cv2.minAreaRect(contour)[2]
+        M = cv2.moments(contour)
+        print(M)
+        cx = 1
+        cy = 1
+        if M['m00'] != 0:
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+        cv2.putText(depth_data2, str(int(theta)), (cx, cy), font, 0.5, (0,255,255), thickness=2)
+
+    cv2.imshow("Image window", depth_data2)
+    cv2.waitKey(0)
+
+
+ 
+
+
     # edges = cv2.Canny(depth_img.astype(np.uint8), 20, 30)
     # kernel_size = 5
     # blurred_edges = cv2.GaussianBlur(edges,(kernel_size,kernel_size),0)
@@ -107,7 +166,12 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
+
+
 if __name__ == '__main__':
-    rgb_img = 'data/Deapth_RGB/RGB_image3.png'
-    depth_img = 'data/Deapth_RGB/depth_image3.png'
+    rgb_img = '../data/Deapth_RGB/RGB_image3.png'
+    depth_img = '../data/Deapth_RGB/depth_image3.png'
+    # rgb_img = 'C:\Users\Lynx1\Desktop\MS\A-Course\ROB 550\ROB550\data\Deapth_RGB\depth_image3.png'
+    # depth_img = 'C:\Users\Lynx1\Desktop\MS\A-Course\ROB 550\ROB550\data\Deapth_RGB\depth_image3.png'
     detectBlocksInDepthImage(rgb_img,depth_img)
+   
