@@ -231,9 +231,16 @@ class Gui(QMainWindow):
         if self.ui.radioVideo.isChecked():
             pass
         elif self.ui.radioUsr2.isChecked():
-            transformation_matrix = self.camera.transformation_matrix
-            pos = np.dot(np.linalg.inv(transformation_matrix), np.array(pos)) 
+            inv_transformation_matrix = np.linalg.inv(self.camera.transformation_matrix)
+            transformed_coords = np.array([pos[0], pos[1], 1])
+            original_coords = np.dot(inv_transformation_matrix, transformed_coords)
 
+            original_x = original_coords[0] / original_coords[2]
+            original_y = original_coords[1] / original_coords[2]
+
+            pos[0] = original_x
+            pos[1] = original_y
+            
         if self.camera.DepthFrameRaw.any() != 0:
             
             if self.camera.cameraCalibrated == True:
