@@ -49,7 +49,7 @@ class Camera():
         self.DepthFrameHSV = np.zeros((720,1280, 3)).astype(np.uint8)
         self.DepthFrameRGB = np.zeros((720,1280, 3)).astype(np.uint8)
         self.tagsCenter = []
-
+        self.tagsNotChange = []
         # mouse clicks & calibration variables
         self.cameraCalibrated = False
         self.intrinsic_matrix = INTRINISC_MATRIX
@@ -57,6 +57,7 @@ class Camera():
         self.distortion = DISTORTION
         self.use_default_intrinisc_matrix = False
         self.last_click = np.array([0, 0])
+        self.last_click_worldframe = (0.0, 0.0, 0.0)
         self.new_click = False
         self.rgb_click_points = np.zeros((5, 2), int)
         self.depth_click_points = np.zeros((5, 2), int)
@@ -65,8 +66,8 @@ class Camera():
         self.grid_points = np.array(np.meshgrid(self.grid_x_points, self.grid_y_points))
         self.tag_detections = np.array([])
         self.tag_locations_3D = [[-250, -25, 0],[250, -25, 0],[250, 275, 0],[-250, 275, 0], [-250,125,150], [350,25,150]]
-        # self.tag_locations_2D = [[425, 200], [925, 200], [925, 500], [425, 500]]
-        self.tag_locations_2D = [[250, 500], [750, 500], [750, 200], [250, 200]]
+        self.tag_locations_2D = [[425, 200], [925, 200], [925, 500], [425, 500]]
+        # self.tag_locations_2D = [[250, 500], [750, 500], [750, 200], [250, 200]]
 
 
 
@@ -237,30 +238,23 @@ class Camera():
                     
                     Once calibrited, use exrinsic matrix to finish this task
         """
-        if self.cameraCalibrated == True:
-            modified_image = self.VideoFrame.copy()
-            transformation_matrix = self.extrinsic_matrix[:3, :3]
-            modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (modified_image.shape[0], modified_image.shape[1]))
-            self.GridFrame = modified_image
-
-        else:
-            modified_image = self.VideoFrame.copy()
-            image_points = np.array(self.tagsCenter[:4]).astype(np.float32)
-            world_points = np.array(self.tag_locations_2D).astype(np.float32)
-            # Compute transformation matrix M
-            if image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
-                print("ERROR: AprilTag not enough, at least four")
-                return None
-            elif image_points.shape[0] != world_points.shape[0]:
-                print("ERROR: Image points do not match Camera points")
-                print(image_points.shape)
-                return None
-            elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
-                transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
-                # Create Birds-eye view
-                modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (modified_image.shape[0], modified_image.shape[1]))
-                # self.GridFrame = cv2.flip(modified_image, 0)
-                self.GridFrame = modified_image
+        modified_image = self.VideoFrame.copy()
+        image_points = np.array(self.tagsNotChange[:4]).astype(np.float32)
+        world_points = np.array(self.tag_locations_2D).astype(np.float32)
+        # Compute transformation matrix M
+        if image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
+            print("ERROR: AprilTag not enough, at least four")
+            return None
+        elif image_points.shape[0] != world_points.shape[0]:
+            print("ERROR: Image points do not match Camera points")
+            print(image_points.shape)
+            return None
+        elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
+            transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
+            # Create Birds-eye view
+            modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
+            self.GridFrame = cv2.flip(modified_image, 0)
+            # self.GridFrame = modified_image
 
      
     def drawTagsInRGBImage(self, msg):
@@ -277,6 +271,7 @@ class Camera():
         
         modified_image = self.VideoFrame.copy()
         self.tagsCenter = []
+     
         for detection in msg.detections:
             # Draw center
             center = [int(detection.centre.x), int(detection.centre.y)]
@@ -296,15 +291,14 @@ class Camera():
             ID = "ID: " + str(detection.id)
             #print(ID)
             cv2.putText(modified_image,ID,ID_pos,cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,0,0),thickness=2)
-
+        
+        if self.tagsNotChange == []:
+            self.tagsNotChange = self.tagsCenter
+        
         self.TagImageFrame = modified_image
 
-        self.birdEyesViewInGridFrame()
-
-
-
     def calibrateFromAprilTag(self, msg):
-        self.detectBlocksInDepthImage()
+        self.tagsNotChange = []
         image_points = np.array(self.tagsCenter).astype(np.float32)
         world_points = np.array(self.tag_locations_3D).astype(np.float32)
 
@@ -455,8 +449,8 @@ class VideoThread(QThread):
                 depth_frame = self.camera.convertQtDepthFrame()
                 tag_frame = self.camera.convertQtTagImageFrame()
                 # During check point2, rel
-                # self.camera.projectGridInRGBImage()
-                # self.camera.birdEyesViewInGridFrame()
+                self.camera.projectGridInRGBImage()
+                self.camera.birdEyesViewInGridFrame()
                 grid_frame = self.camera.convertQtGridFrame()
                 if ((rgb_frame != None) & (depth_frame != None)):
                     self.updateFrame.emit(
