@@ -66,8 +66,9 @@ class Camera():
         self.grid_points = np.array(np.meshgrid(self.grid_x_points, self.grid_y_points))
         self.tag_detections = np.array([])
         self.tag_locations_3D = [[-250, -25, 0],[250, -25, 0],[250, 275, 0],[-250, 275, 0], [-250,125,150], [350,25,150]]
-        self.tag_locations_2D = [[425, 200], [925, 200], [925, 500], [425, 500]]
+        # self.tag_locations_2D = [[425, 200], [925, 200], [925, 500], [425, 500]]
         # self.tag_locations_2D = [[250, 500], [750, 500], [750, 200], [250, 200]]
+        self.tag_locations_2D = [[400, 550], [900, 550], [900, 250], [400, 250]]
         self.transformation_matrix = np.zeros((3,3))
 
         """ block info """
@@ -251,9 +252,8 @@ class Camera():
         elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
             self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
             # Create Birds-eye view
-            modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
-            self.GridFrame = cv2.flip(modified_image, 0)
-            # self.GridFrame = modified_image
+            modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
+            self.GridFrame = modified_image
 
      
     def drawTagsInRGBImage(self, msg):

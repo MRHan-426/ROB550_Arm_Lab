@@ -226,21 +226,21 @@ class Gui(QMainWindow):
         @param      pos: x, y z coordinate in image frame
                     pos[0]:x, pos[1]:y
         """
-        z = pos[2]
+        
 
         if self.ui.radioVideo.isChecked():
-            pass
+            original_x = pos[0]
+            original_y = pos[1]
+            
         elif self.ui.radioUsr2.isChecked():
             inv_transformation_matrix = np.linalg.inv(self.camera.transformation_matrix)
             transformed_coords = np.array([pos[0], pos[1], 1])
-            original_coords = np.dot(inv_transformation_matrix, transformed_coords)
+            original_coords = np.matmul(inv_transformation_matrix, transformed_coords)
 
             original_x = original_coords[0] / original_coords[2]
             original_y = original_coords[1] / original_coords[2]
-
-            pos[0] = original_x
-            pos[1] = original_y
-            
+        
+        z = self.camera.DepthFrameRaw[int(original_y)][int(original_x)]
         if self.camera.DepthFrameRaw.any() != 0:
             
             if self.camera.cameraCalibrated == True:
@@ -250,7 +250,7 @@ class Gui(QMainWindow):
                 K2 = self.camera.extrinsic_matrix
                 K1 = self.camera.intrinsic_matrix
 
-                P_w =  np.linalg.inv(K2) @ np.vstack((z * np.linalg.inv(K1) @ np.array([[pos[0]],[pos[1]],[1]]), 1))
+                P_w =  np.linalg.inv(K2) @ np.vstack((z * np.linalg.inv(K1) @ np.array([[original_x],[original_y],[1]]), 1))
             
             else: # use default extrinsic parameters
                 t = np.array([0, 365, 1000])
@@ -258,8 +258,8 @@ class Gui(QMainWindow):
                             [0.0, -0.9763,  -0.2164],
                             [-0.0436, 0.2162, -0.9754]])
 
-                u = pos[0]
-                v = pos[1]
+                u = original_x
+                v = original_y
 
                 fx, fy = self.camera.intrinsic_matrix[0, 0], self.camera.intrinsic_matrix[1, 1]
                 cx, cy = self.camera.intrinsic_matrix[0, 2], self.camera.intrinsic_matrix[1, 2]
@@ -293,12 +293,11 @@ class Gui(QMainWindow):
         """
 
         pt = mouse_event.pos()
-        z = self.camera.DepthFrameRaw[pt.y()][pt.x()]
 
-        pxyz = self.transformFromImageToWorldFrame((pt.x(), pt.y(), z))
+        pxyz = self.transformFromImageToWorldFrame((pt.x(), pt.y()))
 
         self.ui.rdoutMousePixels.setText("(%.0f,%.0f,%.0f)" %
-                                            (pt.x(), pt.y(), z))
+                                            (pt.x(), pt.y(), pxyz[2]))
 
         self.ui.rdoutMouseWorld.setText("(%.0f,%.0f,%.0f)" %
                                             (pxyz[0], pxyz[1], pxyz[2]))
