@@ -49,6 +49,22 @@ class block:
 
         # If all cross products have the same sign, the point is inside the square
         return all(cp >= 0 for cp in cross_products) or all(cp <= 0 for cp in cross_products)
+    
+    def colordetection(self):
+        # find 5 points to be detected
+        x,y = self.center
+        points = []
+        points.append(self.center)
+        for vertex in self.vertices:
+            vx, vy = vertex
+            vector = (vx - x, vy - y)
+            points.append((x + vector[0]/2, y + vector[1]/2))
+        
+        color_counts = {'red':0,'blue':0,'yellow':0,'green':0,'orange':0,'purple':0,'pink':0,'unkonwn':0}
+        for point in points:
+            detected_color = ...
+            color_counts[detected_color] += 1
+        
 
 
 
