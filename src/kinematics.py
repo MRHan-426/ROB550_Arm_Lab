@@ -207,6 +207,7 @@ def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None,):
     y = pose[1]
     z = pose[2]
     phi = np.deg2rad(pose[3])
+    block_ori = np.pi/2 - block_ori
     
     theta1 = np.arctan2(-x, y)
 
@@ -309,7 +310,6 @@ if __name__ == '__main__':
     # joint_angles = [clamp(-0.73170888),clamp(0.320602),clamp(0.53689331),clamp(-0.0076699),clamp(0.01073787)]
 
   
-
     # if np.allclose(T_DH, T_POX, rtol=1e-05, atol=1e-08):
     #     print("POX and DH get the same result, mission complete.")
     # else:

@@ -5,6 +5,7 @@ from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot, QTimer
 import time
 import numpy as np
 import rclpy
+import kinematics
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Int32
 from apriltag_msgs.msg import *
@@ -105,6 +106,9 @@ class StateMachine():
 
         if self.next_state == "close_gripper":
             self.close_gripper()
+
+        if self.next_state == "grab":
+            self.grab()
 
     """Functions run for each state"""
 
@@ -256,6 +260,38 @@ class StateMachine():
         @brief      Detect the blocks
         """
         time.sleep(1)
+
+    def grab(self):
+        """!
+        @brief     use IK to grab a block at given position
+        """
+
+        click_point = self.camera.last_click
+        if click_point != np.zeros(2):
+            print("task start")
+
+            # start grab (ignore whether there is a block)
+            # convert coordinates to world frame 
+            pose = [0,0,50,np.pi/2]
+            pre_position = pose
+            pre_position[2] += 60
+            Success1,joint_pos1 = kinematics.IK_geometric(pre_position)
+            Success2,joint_pos2 = kinematics.IK_geometric(pose)
+            if Success1 and Success2:
+                self.current_state = "grab"
+                time.sleep(2)
+                self.rxarm.set_positions(joint_pos1)
+                time.sleep(2)
+                self.rxarm.set_positions(joint_pos2)
+                time.sleep(2)
+                self.next_state = "idle"
+
+        else:
+            pass
+        
+
+
+
 
     def initialize_rxarm(self):
         """!
