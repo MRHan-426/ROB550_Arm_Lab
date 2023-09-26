@@ -64,9 +64,10 @@ class Camera():
         self.grid_y_points = np.arange(-175, 525, 50)
         self.grid_points = np.array(np.meshgrid(self.grid_x_points, self.grid_y_points))
         self.tag_detections = np.array([])
-        self.tag_locations_3D = [[-250, -25, 0],[250, -25, 0],[250, 275, 0],[-250, 275, 0],[-250,125,150],[350,25,150]]
-        # self.tag_locations_2D = [[-250, -25], [250, -25], [250, 275], [-250, 275]]
-        self.tag_locations_2D = [[425, 200], [925, 200], [925, 500], [425, 500]]
+        self.tag_locations_3D = [[-250, -25, 0],[250, -25, 0],[250, 275, 0],[-250, 275, 0], [-250,125,150], [350,25,150]]
+        # self.tag_locations_2D = [[425, 200], [925, 200], [925, 500], [425, 500]]
+        self.tag_locations_2D = [[250, 500], [750, 500], [750, 200], [250, 200]]
+
 
 
         """ block info """
@@ -238,7 +239,7 @@ class Camera():
         """
         if self.cameraCalibrated == True:
             modified_image = self.VideoFrame.copy()
-            transformation_matrix = self.extrinsic_matrix
+            transformation_matrix = self.extrinsic_matrix[:3, :3]
             modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (modified_image.shape[0], modified_image.shape[1]))
             self.GridFrame = modified_image
 
@@ -300,7 +301,7 @@ class Camera():
 
         self.birdEyesViewInGridFrame()
 
-        
+
 
     def calibrateFromAprilTag(self, msg):
         self.detectBlocksInDepthImage()
