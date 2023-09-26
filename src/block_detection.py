@@ -21,7 +21,34 @@ class block:
         self.center = center
         self.height = height
         self.side = side
-        self.orientation = orientation
+        self.orientation = np.deg2rad(orientation)
+        half_length = self.side / 2.0
+        self.vertices = []
+        for i in range(4):
+            angle = self.orientation + (i * np.pi / 2)
+            x = self.center[0] + half_length * np.cos(angle)
+            y = self.center[1] + half_length * np.sin(angle)
+            self.vertices.append((x, y))
+
+    # detect whether a point is in a square
+    def inArea(self,point):
+        x,y = point
+
+        # Calculate vectors from point to each vertex of the square
+        vectors = []
+        for vertex in self.vertices:
+            vx, vy = vertex
+            vectors.append((vx - x, vy - y))
+
+        # Calculate the cross product of consecutive vectors
+        cross_products = []
+        for i in range(len(vectors)):
+            x1, y1 = vectors[i]
+            x2, y2 = vectors[(i + 1) % len(vectors)]
+            cross_products.append(x1 * y2 - x2 * y1)
+
+        # If all cross products have the same sign, the point is inside the square
+        return all(cp >= 0 for cp in cross_products) or all(cp <= 0 for cp in cross_products)
 
 
 
