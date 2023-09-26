@@ -218,35 +218,26 @@ class Gui(QMainWindow):
             self.ui.SliderFrame.setEnabled(False)
             self.ui.chk_directcontrol.setChecked(False)
 
-    def trackMouse(self, mouse_event):
+
+    def transformFromImageToWorldFrame(sefl, pos: tuple) -> tuple:
         """!
-        @brief      Show the mouse position in GUI
+        @brief      transform From Image To WorldFrame
 
-                    TODO: after implementing workspace calibration display the world coordinates the mouse points to in the RGB
-                    video image.
-
-        @param      mouse_event  QtMouseEvent containing the pose of the mouse at the time of the event not current time
+        @param      pos: x, y coordinate in image frame
+                    pos[0]:x, pos[1]:y
         """
 
-        pt = mouse_event.pos()
-
         if self.camera.DepthFrameRaw.any() != 0:
-
-            z = self.camera.DepthFrameRaw[pt.y()][pt.x()]
-            self.ui.rdoutMousePixels.setText("(%.0f,%.0f,%.0f)" %
-                                             (pt.x(), pt.y(), z))
-
-            intrinsic_matrix = self.camera.intrinsic_matrix
-            extrinsic_matrix = self.camera.extrinsic_matrix
+            z = self.camera.DepthFrameRaw[pos[1]][pos[0]]
             
             if self.camera.cameraCalibrated == True:
-                T = extrinsic_matrix[:,3]
-                R = extrinsic_matrix[:,0:3]
+                T = self.camera.extrinsic_matrix[:,3]
+                R = self.camera.extrinsic_matrix[:,0:3]
 
-                K2 = extrinsic_matrix
-                K1 = intrinsic_matrix
+                K2 = self.camera.extrinsic_matrix
+                K1 = self.camera.intrinsic_matrix
 
-                P_w =  np.linalg.inv(K2) @ np.vstack((z * np.linalg.inv(K1) @ np.array([[pt.x()],[pt.y()],[1]]), 1))
+                P_w =  np.linalg.inv(K2) @ np.vstack((z * np.linalg.inv(K1) @ np.array([[pos[0]],[pos[1]],[1]]), 1))
             
             else: # use default extrinsic parameters
                 t = np.array([0, 365, 1000])
@@ -254,11 +245,11 @@ class Gui(QMainWindow):
                             [0.0, -0.9763,  -0.2164],
                             [-0.0436, 0.2162, -0.9754]])
 
-                u = pt.x()
-                v = pt.y()
+                u = pos[0]
+                v = pos[1]
 
-                fx, fy = intrinsic_matrix[0, 0], intrinsic_matrix[1, 1]
-                cx, cy = intrinsic_matrix[0, 2], intrinsic_matrix[1, 2]
+                fx, fy = self.camera.intrinsic_matrix[0, 0], self.camera.intrinsic_matrix[1, 1]
+                cx, cy = self.camera.intrinsic_matrix[0, 2], self.camera.intrinsic_matrix[1, 2]
                 
                 x_prime = (u - cx) / fx
                 y_prime = (v - cy) / fy
@@ -270,9 +261,32 @@ class Gui(QMainWindow):
                 t = t.reshape(3,1)
 
                 P_w = R @ P_c + t
+            
+            return (P_w[0], P_w[1], P_w[2])
 
-            self.ui.rdoutMouseWorld.setText("(%.0f,%.0f,%.0f)" %
-                                             (P_w[0], P_w[1], P_w[2]))
+        else:
+            print("ERROR: Cannot load depth information")
+            return (0, 0, 0)
+
+
+    def trackMouse(self, mouse_event):
+        """!
+        @brief      Show the mouse position in GUI
+
+                    TODO(DONE): after implementing workspace calibration display the world coordinates the mouse points to in the RGB
+                    video image.
+
+        @param      mouse_event  QtMouseEvent containing the pose of the mouse at the time of the event not current time
+        """
+
+        pt = mouse_event.pos()
+        pxyz = self.transformFromImageToWorldFrame((pt.y(), pt.x()))
+
+        self.ui.rdoutMousePixels.setText("(%.0f,%.0f,%.0f)" %
+                                            (pt.x(), pt.y(), z))
+
+        self.ui.rdoutMouseWorld.setText("(%.0f,%.0f,%.0f)" %
+                                            (pxyz[0], pxyz[1], pxyz[2]))
 
 
     def calibrateMousePress(self, mouse_event):
@@ -285,7 +299,11 @@ class Gui(QMainWindow):
         pt = mouse_event.pos()
         self.camera.last_click[0] = pt.x()
         self.camera.last_click[1] = pt.y()
+
+        self.camera.last_click_worldframe = self.transformFromImageToWorldFrame((pt.y(), pt.x()))
+
         self.camera.new_click = True
+        
         # print(self.camera.last_click)
 
     def initRxarm(self):

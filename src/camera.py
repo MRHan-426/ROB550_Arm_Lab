@@ -57,6 +57,7 @@ class Camera():
         self.distortion = DISTORTION
         self.use_default_intrinisc_matrix = False
         self.last_click = np.array([0, 0])
+        self.last_click_worldframe = (0.0, 0.0, 0.0)
         self.new_click = False
         self.rgb_click_points = np.zeros((5, 2), int)
         self.depth_click_points = np.zeros((5, 2), int)
