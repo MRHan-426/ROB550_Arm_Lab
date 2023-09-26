@@ -18,9 +18,17 @@ from sensor_msgs.msg import Image, CameraInfo
 from apriltag_msgs.msg import *
 from cv_bridge import CvBridge, CvBridgeError
 
+# default
 INTRINISC_MATRIX = np.array([[918.2490195188435, 0.0, 636.4533753942957],
                             [0.0, 912.0611927215057, 365.23840749139805],
                             [0.0, 0.0, 1.0]])
+
+EXTRINSIC_MATRIX = np.array([
+                    [ 9.99581091e-01, -2.82705457e-02, -6.19823419e-03, 3.45427247e+01],
+                    [-2.62323435e-02, -9.75452033e-01, 2.18643994e-01, 1.32930439e+02],
+                    [-1.22272652e-02, -2.18389808e-01, -9.75785010e-01, 1.04360917e+03],
+                    [ 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
+                    ])
 
 DISTORTION = np.array([0.12255661041263047, -0.19338918906656302, 0.00411197288757392, 0.007337075149104217, 0.0])
 
@@ -45,7 +53,7 @@ class Camera():
         # mouse clicks & calibration variables
         self.cameraCalibrated = False
         self.intrinsic_matrix = INTRINISC_MATRIX
-        self.extrinsic_matrix = np.eye(4)
+        self.extrinsic_matrix = EXTRINSIC_MATRIX
         self.distortion = DISTORTION
         self.use_default_intrinisc_matrix = False
         self.last_click = np.array([0, 0])
@@ -194,41 +202,14 @@ class Camera():
 
                     TODO: Implement a blob detector to find blocks in the depth image
         """
-        kernel_size = 5
-        edges = cv2.Canny((self.DepthFrameRaw-1000).astype(np.uint8), 20, 40)
-        blurred_edges = cv2.GaussianBlur(edges,(kernel_size,kernel_size),0)
-        cv2.imshow("Blurred edges",blurred_edges)
-        cv2.imshow("original edges",edges)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-        # contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # centroids = []  # To store the centroids of blobs
-        # for contour in contours:
-        #     M = cv2.moments(contour)
-        #     if M["m00"] != 0:
-        #         cX = int(M["m10"] / M["m00"])
-        #         cY = int(M["m01"] / M["m00"])
-        #     else:
-        #         cX, cY = 0, 0
-        #     centroids.append((cX, cY))
-        # # for centroid in centroids:
-        #     # cv2.circle(self.VideoFrame, centroid, 5, (0, 0, 255), -1)  # Draw a red circle at the centroid position
-        
-        # blocks = []
-        # for contour in contours:
-        #     epsilon = 0.06 * cv2.arcLength(contour, True)
-        #     approx = cv2.approxPolyDP(contour, epsilon, True)
-        #     if len(approx) == 4:
-        #         blocks.append(approx)
-        #         # np.append(self.block_contours,approx)
-        # cv2.drawContours(self.VideoFrame, blocks, -1,(255, 0, 255), 3)
-        # cv2.imshow("Block Contour",self.VideoFrame)
+        pass
+
 
     def projectGridInRGBImage(self):
         """!
-        @brief      projects
+        @brief      projects (when we are not doing check point2, we do not use this function)
 
-                    TODO: Use the intrinsic and extrinsic matricies to project the gridpoints 
+                    TODO(DONE): Use the intrinsic and extrinsic matricies to project the gridpoints 
                     on the board into pixel coordinates. copy self.VideoFrame to self.GridFrame and
                     and draw on self.GridFrame the grid intersection points from self.grid_points
                     (hint: use the cv2.circle function to draw circles on the image)
@@ -250,10 +231,18 @@ class Camera():
 
     def birdEyesViewInGridFrame(self):
         """!
-        @brief      TODO Use affline transformation to draw bird-eyes view in the GridFrame (User2 in GUI)
-
+        @brief      TODO(DONE) 
+                    Use affline transformation to draw bird-eyes view in the GridFrame (User2 in GUI)
+                    
+                    Once calibrited, use exrinsic matrix to finish this task
         """
         if self.cameraCalibrated == True:
+            modified_image = self.VideoFrame.copy()
+            transformation_matrix = self.extrinsic_matrix
+            modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (1280, 720))
+            self.GridFrame = cv2.flip(modified_image, 0)
+
+        else:
             modified_image = self.VideoFrame.copy()
             image_points = np.array(self.tagsCenter[:4]).astype(np.float32)
             world_points = np.array(self.tag_locations_2D).astype(np.float32)
@@ -270,8 +259,7 @@ class Camera():
                 # Create Birds-eye view
                 modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (1280, 720))
                 self.GridFrame = cv2.flip(modified_image, 0)
-        else:
-            pass
+
      
     def drawTagsInRGBImage(self, msg):
         """
@@ -460,7 +448,8 @@ class VideoThread(QThread):
                 rgb_frame = self.camera.convertQtVideoFrame()
                 depth_frame = self.camera.convertQtDepthFrame()
                 tag_frame = self.camera.convertQtTagImageFrame()
-                self.camera.projectGridInRGBImage()
+                # During check point2, rel
+                # self.camera.projectGridInRGBImage()
                 self.camera.birdEyesViewInGridFrame()
                 grid_frame = self.camera.convertQtGridFrame()
                 if ((rgb_frame != None) & (depth_frame != None)):

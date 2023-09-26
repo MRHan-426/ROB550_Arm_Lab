@@ -248,7 +248,7 @@ class Gui(QMainWindow):
 
                 P_w =  np.linalg.inv(K2) @ np.vstack((z * np.linalg.inv(K1) @ np.array([[pt.x()],[pt.y()],[1]]), 1))
             
-            else: # use hand-calibrited parameters
+            else: # use default extrinsic parameters
                 t = np.array([0, 365, 1000])
                 R = np.array([[0.999, 0.0094, -0.0426],
                             [0.0, -0.9763,  -0.2164],
