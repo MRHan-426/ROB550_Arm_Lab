@@ -239,8 +239,8 @@ class Camera():
         if self.cameraCalibrated == True:
             modified_image = self.VideoFrame.copy()
             transformation_matrix = self.extrinsic_matrix
-            modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (1280, 720))
-            self.GridFrame = cv2.flip(modified_image, 0)
+            modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (modified_image.shape[0], modified_image.shape[1]))
+            self.GridFrame = modified_image
 
         else:
             modified_image = self.VideoFrame.copy()
@@ -257,8 +257,9 @@ class Camera():
             elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
                 transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
                 # Create Birds-eye view
-                modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (1280, 720))
-                self.GridFrame = cv2.flip(modified_image, 0)
+                modified_image = cv2.warpPerspective(modified_image, transformation_matrix, (modified_image.shape[0], modified_image.shape[1]))
+                # self.GridFrame = cv2.flip(modified_image, 0)
+                self.GridFrame = modified_image
 
      
     def drawTagsInRGBImage(self, msg):
@@ -272,8 +273,8 @@ class Camera():
                     center of the tag: (detection.centre.x, detection.centre.y) they are floats
                     id of the tag: detection.id
         """
+        
         modified_image = self.VideoFrame.copy()
-        # Write your code here
         self.tagsCenter = []
         for detection in msg.detections:
             # Draw center
@@ -296,6 +297,10 @@ class Camera():
             cv2.putText(modified_image,ID,ID_pos,cv2.FONT_HERSHEY_SIMPLEX,0.5,(255,0,0),thickness=2)
 
         self.TagImageFrame = modified_image
+
+        self.birdEyesViewInGridFrame()
+
+        
 
     def calibrateFromAprilTag(self, msg):
         self.detectBlocksInDepthImage()
@@ -450,7 +455,7 @@ class VideoThread(QThread):
                 tag_frame = self.camera.convertQtTagImageFrame()
                 # During check point2, rel
                 # self.camera.projectGridInRGBImage()
-                self.camera.birdEyesViewInGridFrame()
+                # self.camera.birdEyesViewInGridFrame()
                 grid_frame = self.camera.convertQtGridFrame()
                 if ((rgb_frame != None) & (depth_frame != None)):
                     self.updateFrame.emit(
