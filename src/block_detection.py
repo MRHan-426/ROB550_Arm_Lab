@@ -51,7 +51,7 @@ class block:
         # If all cross products have the same sign, the point is inside the square
         return all(cp >= 0 for cp in cross_products) or all(cp <= 0 for cp in cross_products)
     
-    def colordetection(self):
+    def colordetection(self,img):
         # find 5 points to be detected
         x,y = self.center
         points = []
@@ -63,9 +63,10 @@ class block:
         
         color_counts = {'red':0,'blue':0,'yellow':0,'green':0,'orange':0,'purple':0,'pink':0,'unkonwn':0}
         for point in points:
-            detected_color = ...
+            detected_color = detectBlocksColorInRGBImage(img,tuple(point))
             color_counts[detected_color] += 1
-        
+        max_color = max(color_counts, key=color_counts.get)
+        return max_color
 
 
 
