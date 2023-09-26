@@ -250,7 +250,7 @@ class Camera():
 
     def birdEyesViewInGridFrame(self):
         """!
-        @brief      Use affline transformation to draw bird-eyes view in the GridFrame (User2 in GUI)
+        @brief      TODO Use affline transformation to draw bird-eyes view in the GridFrame (User2 in GUI)
 
         """
         if self.cameraCalibrated == True:
