@@ -226,9 +226,15 @@ class Gui(QMainWindow):
         @param      pos: x, y z coordinate in image frame
                     pos[0]:x, pos[1]:y
         """
+        z = pos[2]
+
+        if self.ui.radioVideo.isChecked():
+            pass
+        elif self.ui.radioUsr2.isChecked():
+            transformation_matrix = self.camera.transformation_matrix
+            pos = np.dot(np.linalg.inv(transformation_matrix), np.array(pos)) 
 
         if self.camera.DepthFrameRaw.any() != 0:
-            z = pos[2]
             
             if self.camera.cameraCalibrated == True:
                 T = self.camera.extrinsic_matrix[:,3]
