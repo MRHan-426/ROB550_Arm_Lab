@@ -16,6 +16,7 @@ EXTRINSIC_MATRIX = np.array([
                     [ 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
                     ])
 
+
 class block:
     def __init__(self,center,height,side,orientation):
         self.center = center
@@ -68,74 +69,46 @@ class block:
 
 
 
-def blockDetector(img):
+def detectBlocksColorInRGBImage(img, position: tuple) -> str:
     """!
     @brief      Detect blocks from rgb
+    
+    @param      position x, y
+                
+                return color
 
-                TODO: Implement your block detector here. You will need to locate blocks in 3D space and put their XYZ
-                locations in block_detections
     """
-
     # load the image
-    img=cv2.imread(img)
-    # frame = cv2.resize(cv2.rotate(img, cv2.ROTATE_90_COUNTERCLOCKWISE),(640,480))
-    frame = img
-    result_image = np.zeros_like(frame)
-
-    # red
-    lower_red_1 = np.array([0, 43, 46])
-    higher_red_1 = np.array([10, 255, 255])
-    lower_red_2 = np.array([156, 43, 46])
-    higher_red_2 = np.array([180, 255, 255])
-
-    # orange
-    lower_orange = np.array([11, 43, 46])
-    higher_orange = np.array([25, 255, 255])
-
-    # yellow
-    lower_yellow = np.array([26, 43, 46])
-    higher_yellow = np.array([34, 255, 255])
-
-    # green
-    lower_green = np.array([35, 43, 46])
-    higher_green = np.array([77, 255, 255])
-
-    # blue
-    lower_blue = np.array([100, 43, 46])
-    higher_blue = np.array([105, 255, 255]) 
-
-    # purple
-    lower_purple = np.array([106, 43, 46])
-    higher_purple = np.array([150, 255, 255])  
-
-    # pink
-    lower_pink = np.array([165, 43, 46])
-    higher_pink = np.array([255, 255, 255])   
-
+    frame = cv2.imread(img)
     img_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    mask_red_1 = cv2.medianBlur(cv2.inRange(img_hsv, lower_red_1, higher_red_1), 7)
-    mask_red_2 = cv2.medianBlur(cv2.inRange(img_hsv, lower_red_2, higher_red_2), 7)
-    mask_orange = cv2.medianBlur(cv2.inRange(img_hsv, lower_orange, higher_orange), 7)
-    mask_yellow = cv2.medianBlur(cv2.inRange(img_hsv, lower_yellow, higher_yellow), 7)
-    mask_green = cv2.medianBlur(cv2.inRange(img_hsv, lower_green, higher_green), 7)
-    mask_blue = cv2.medianBlur(cv2.inRange(img_hsv, lower_blue, higher_blue), 7)
-    mask_purple = cv2.medianBlur(cv2.inRange(img_hsv, lower_purple, higher_purple), 7)
-    mask_pink = cv2.medianBlur(cv2.inRange(img_hsv, lower_pink, higher_pink), 7)
 
-    result_image[mask_red_1 > 0] = [255, 255, 255]
-    result_image[mask_red_2 > 0] = [255, 255, 255]
-    result_image[mask_orange > 0] = [255, 255, 255]
-    result_image[mask_yellow > 0] = [255, 255, 255]
-    result_image[mask_green > 0] = [255, 255, 255]
-    result_image[mask_blue > 0] = [255, 255, 255]
-    result_image[mask_purple > 0] = [255, 255, 255]
-    result_image[mask_pink > 0] = [255, 255, 255]
+    masks = {
+            "red": (cv2.inRange(img_hsv, np.array([0, 43, 46]), np.array([10, 255, 255])) + 
+                    cv2.inRange(img_hsv, np.array([156, 43, 46]), np.array([180, 255, 255]))),
+            "orange": cv2.inRange(img_hsv, np.array([11, 43, 46]), np.array([25, 255, 255])),
+            "yellow": cv2.inRange(img_hsv, np.array([26, 43, 46]), np.array([34, 255, 255])),
+            "green": cv2.inRange(img_hsv, np.array([35, 43, 46]), np.array([77, 255, 255])),
+            "blue": cv2.inRange(img_hsv, np.array([100, 43, 46]), np.array([105, 255, 255])),
+            "purple": cv2.inRange(img_hsv, np.array([106, 43, 46]), np.array([150, 255, 255])),
+            "pink": cv2.inRange(img_hsv, np.array([165, 43, 46]), np.array([255, 255, 255]))
+        }
 
-    cv2.imshow('Image', mask_purple)
+    detected_color = "unknown"
+    for color, mask in masks.items():
+            if mask[position[1], position[0]] > 0:
+                detected_color = color
+
+    cv2.circle(frame, position, 5, (0, 0, 255), -1) # Red circle of radius 5
+    font = cv2.FONT_HERSHEY_SIMPLEX 
+    font_scale = 0.5
+    font_thickness = 1
+    text_position = (position[0] + 10, position[1])
+    cv2.putText(frame, detected_color, text_position, font, font_scale, (0, 0, 255), font_thickness)
+    cv2.imshow('Image', frame)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-    
 
+    return detected_color
 
 
 def depth_img_affline_transformation(depth_img: np.array):
@@ -297,7 +270,8 @@ def detectBlocksInDepthImageCanny():
 
 
 if __name__ == '__main__':
-    rgb_img = 'data/Deapth_RGB/RGB_image4.png'
+    rgb_img = 'data/Deapth_RGB/rgb_image4.png'
     depth_img = 'data/Deapth_RGB/depth_image4.png'
-    detectBlocksInDepthImage(rgb_img,depth_img)
-   
+    # detectBlocksInDepthImage(rgb_img, depth_img)
+    pos = (470, 360)
+    detectBlocksColorInRGBImage(rgb_img, pos)
