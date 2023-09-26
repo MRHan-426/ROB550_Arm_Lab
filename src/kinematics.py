@@ -208,6 +208,11 @@ def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None,):
     z = pose[2]
     phi = np.deg2rad(pose[3])
     block_ori = np.pi/2 - block_ori
+
+    if z < 0:
+        print("[Target Pose Error] Manipulator cannot touch the plane")
+        return False,[0,0,0,0,0]
+    
     
     theta1 = np.arctan2(-x, y)
 

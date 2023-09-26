@@ -285,11 +285,11 @@ class StateMachine():
                 self.rxarm.set_positions(joint_pos2)
                 time.sleep(2)
                 self.next_state = "idle"
+                pass
 
         else:
             pass
         
-
 
 
 
