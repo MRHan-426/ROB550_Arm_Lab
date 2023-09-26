@@ -1,7 +1,17 @@
 import numpy as np
 import cv2
+from dataclasses import dataclass
 
 font = cv2.FONT_HERSHEY_SIMPLEX
+
+class block:
+    def __init__(self,center,height,side,orientation):
+        self.center = center
+        self.height = height
+        self.side = side
+        self.orientation = orientation
+
+
 
 def blockDetector(img):
     """!
@@ -137,6 +147,8 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
     thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+    blocks = []
+
     for contour in contours:
         epsilon = 0.06 * cv2.arcLength(contour, True)
         approx = cv2.approxPolyDP(contour, epsilon, True)
@@ -154,15 +166,27 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
                 if M['m00'] != 0:
                     cx = int(M['m10']/M['m00'])
                     cy = int(M['m01']/M['m00'])
-
                 drawblock([cx,cy],diagonal_length,theta,depth_data2)
 
+                if diagonal_length > 40:
+                    side = 40
+                else:
+                    side = 20
+                a_block = block([cx,cy],0,side,theta)
+                blocks.append(a_block)
 
                 cv2.circle(depth_data2,(cx,cy),2,(0,255,0),-1)
                 cv2.putText(depth_data2, str(int(theta)), (cx, cy), font, 0.4, (0,255,0), thickness=1)
 
+    block_counter = 1
+    for a_block in blocks:
+        print("Block NO.", block_counter, " | side: ", a_block.side,  " | position: ", a_block.center[0],", ", a_block.center[1])
+        block_counter += 1
+
     cv2.imshow("Image window", depth_data2)
     cv2.waitKey(0)
+    print("block size is: ", len(blocks))
+    
 
 
     # # Edge Detection Using Canny
@@ -199,16 +223,14 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
     #         cv2.circle(rgb_img,(cx,cy),3,(0,255,0),-1)
     #         cv2.putText(rgb_img, str(int(theta)), (cx, cy), font, 0.5, (0,255,0), thickness=1)
 
-
-    
-
     # cv2.imshow("original edges",rgb_img)
     # print("blurred img shape is: ", blurred_edges)
-
 
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
+
+# draw the block on the image
 def drawblock(center,diag,orientation,img):
     side = diag/np.sqrt(2)
     half_side = side/2
