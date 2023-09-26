@@ -219,16 +219,16 @@ class Gui(QMainWindow):
             self.ui.chk_directcontrol.setChecked(False)
 
 
-    def transformFromImageToWorldFrame(sefl, pos: tuple) -> tuple:
+    def transformFromImageToWorldFrame(self, pos: tuple) -> tuple:
         """!
         @brief      transform From Image To WorldFrame
 
-        @param      pos: x, y coordinate in image frame
+        @param      pos: x, y z coordinate in image frame
                     pos[0]:x, pos[1]:y
         """
 
         if self.camera.DepthFrameRaw.any() != 0:
-            z = self.camera.DepthFrameRaw[pos[1]][pos[0]]
+            z = pos[2]
             
             if self.camera.cameraCalibrated == True:
                 T = self.camera.extrinsic_matrix[:,3]
@@ -280,7 +280,9 @@ class Gui(QMainWindow):
         """
 
         pt = mouse_event.pos()
-        pxyz = self.transformFromImageToWorldFrame((pt.y(), pt.x()))
+        z = self.camera.DepthFrameRaw[pt.y()][pt.x()]
+
+        pxyz = self.transformFromImageToWorldFrame((pt.x(), pt.y(), z))
 
         self.ui.rdoutMousePixels.setText("(%.0f,%.0f,%.0f)" %
                                             (pt.x(), pt.y(), z))
