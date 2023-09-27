@@ -237,7 +237,7 @@ class Camera():
             # Create Birds-eye view
             modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
             
-        if self.detect_blocks == true:
+        if self.detect_blocks == True:
             self.blocks = detectBlocksInDepthImage(self.DepthFrameRaw, intrinsic_matrix=self.intrinsic_matrix, extrinsic_matrix=self.extrinsic_matrix)
             modified_image = drawblock(self.blocks, modified_image)
             self.GridFrame = modified_image
@@ -394,7 +394,7 @@ class JBCalibrateListener(Node):
     def __init__(self, topic, camera):
         super().__init__('JB_calibrate_listener')
         self.topic = topic
-        self.tag_sub = self.create_subscription(
+        self.calibrate_sub = self.create_subscription(
             Int32,
             topic,
             self.callback,
@@ -411,7 +411,7 @@ class JBDetectListener(Node):
     def __init__(self, topic, camera):
         super().__init__('JB_Detect_listener')
         self.topic = topic
-        self.tag_sub = self.create_subscription(
+        self.detect_sub = self.create_subscription(
             Int32,
             topic,
             self.callback,
@@ -469,7 +469,7 @@ class VideoThread(QThread):
         camera_info_topic = "/camera/color/camera_info"
         tag_detection_topic = "/detections"
         JB_calibrate_topic = "/JB_calibrate"
-        JB_Detect_topic = "/JB_detect"
+        JB_Detect_topic = "/JB_Detect"
 
         image_listener = ImageListener(image_topic, self.camera)
         depth_listener = DepthListener(depth_topic, self.camera)
@@ -479,7 +479,7 @@ class VideoThread(QThread):
                                                       self.camera)
         JB_calibrate_listener = JBCalibrateListener(JB_calibrate_topic,
                                                       self.camera)  
-        JB_detect_listener = JBDetectListener(JB_Detect_topic,
+        JB_Detect_listener = JBDetectListener(JB_Detect_topic,
                                                       self.camera)  
 
         self.executor = SingleThreadedExecutor()
@@ -488,7 +488,7 @@ class VideoThread(QThread):
         self.executor.add_node(camera_info_listener)
         self.executor.add_node(tag_detection_listener)
         self.executor.add_node(JB_calibrate_listener)
-        self.executor.add_node(JB_detect_listener)
+        self.executor.add_node(JB_Detect_listener)
 
 
     def run(self):

@@ -210,7 +210,7 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
  
 
 # draw the block on the image
-def drawblock(blocks:List[block], output_img:np.array) -> np.array:
+def drawblock(blocks:list[block], output_img:np.array) -> np.array:
     """!
     @brief      Draw blocks for visualization
 
