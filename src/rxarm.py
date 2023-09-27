@@ -26,7 +26,7 @@ from resource.config_parse import parse_dh_param_file
 from sensor_msgs.msg import JointState
 import rclpy
 
-sys.path.append('../../interbotix_ws/src/interbotix_ros_toolboxes/interbotix_xs_toolbox/interbotix_xs_modules/interbotix_xs_modules/xs_robot') 
+sys.path.append('../../../interbotix_ws/src/interbotix_ros_toolboxes/interbotix_xs_toolbox/interbotix_xs_modules/interbotix_xs_modules/xs_robot') 
 from arm import InterbotixManipulatorXS
 from mr_descriptions import ModernRoboticsDescription as mrd
 
