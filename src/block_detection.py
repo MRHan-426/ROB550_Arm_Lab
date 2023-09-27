@@ -18,9 +18,9 @@ EXTRINSIC_MATRIX = np.array([
 
 
 class block:
-    def __init__(self, center, height, side, orientation):
+    def __init__(self, center, depth, side, orientation):
         self.center = center
-        self.height = height
+        self.depth = depth
         self.side = side
         self.orientation = np.deg2rad(orientation)
         half_length = self.side / 2.0
@@ -69,20 +69,13 @@ class block:
         return max_color
 
 
-# def detectBlocks(depth_img, rgb_image, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_matrix = EXTRINSIC_MATRIX):
-    
-#     output_img, blocks = detectBlocksInDepthImage(depth_img, rgb_image.copy(), intrinsic_matrix, extrinsic_matrix)
-#     output_img = detectBlocksColorInRGBImage(rgb_image, blocks)
-#     return output_img
-
-
-def detectBlocksColorInRGBImage(img) -> str:
+def detectBlocksColorInRGBImage(img, position: tuple) -> str:
     """!
     @brief      Detect blocks from rgb
     
     @param      position x, y
                 
-                return color
+                return image
 
     """
     img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -100,19 +93,20 @@ def detectBlocksColorInRGBImage(img) -> str:
 
     detected_color = "unknown"
     for color, mask in masks.items():
-        for block in blocks:
-            if mask[block.position[1], position[0]] > 0:
-                detected_color = color
+        if mask[position[0], position[1]] > 0:
+            detected_color = color
 
-    cv2.circle(frame, position, 5, (0, 0, 255), -1) # Red circle of radius 5
-    font = cv2.FONT_HERSHEY_SIMPLEX 
-    font_scale = 0.5
-    font_thickness = 1
-    text_position = (position[0] + 10, position[1])
-    cv2.putText(frame, detected_color, text_position, font, font_scale, (0, 0, 255), font_thickness)
-    cv2.imshow('Image', frame)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # debug
+    if __name__ == '__main__':
+        cv2.circle(img, position, 5, (0, 0, 255), -1) # Red circle of radius 5
+        font = cv2.FONT_HERSHEY_SIMPLEX 
+        font_scale = 0.5
+        font_thickness = 1
+        text_position = (position[0] + 10, position[1])
+        cv2.putText(img, detected_color, text_position, font, font_scale, (0, 0, 255), font_thickness)
+        cv2.imshow('Image', img)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
 
     return detected_color
 
@@ -178,28 +172,28 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
             point2 = [approx[2,0,0],approx[2,0,1]]
             diagonal_length = np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
             if diagonal_length > 20:             
-                theta = cv2.minAreaRect(contour)[2]
+                orientation = cv2.minAreaRect(contour)[2]
                 M = cv2.moments(contour)
                 cx = 1
                 cy = 1
                 if M['m00'] != 0:
                     cx = int(M['m10']/M['m00'])
                     cy = int(M['m01']/M['m00'])
-                # drawblock([cx,cy], diagonal_length, theta, output_img)
+                # drawblock([cx,cy], diagonal_length, orientation, output_img)
 
-                if diagonal_length > 40:
-                    side = 40
+                # if diagonal_length > 40:
+                    # side = 40
                     # cv2.putText(output_img, "big block", (cx + 5, cy + 5), font, 0.4, (0,255,0), thickness=1)
 
-                else:
-                    side = 20
+                # else:
+                    # side = 20
                     # cv2.putText(output_img, "small block", (cx + 5, cy + 5), font, 0.4, (0,255,0), thickness=1)
 
-                a_block = block([cx,cy] , 0, side, theta)
+                a_block = block([cx,cy] , depth_data[cx, cy], diagonal_length / np.sqrt(2), orientation)
                 blocks.append(a_block)
 
                 # cv2.circle(output_img, (cx,cy), 2, (0,255,0), -1)
-                # cv2.putText(output_img, str(int(theta)), (cx, cy), font, 0.4, (0,255,0), thickness=1)
+                # cv2.putText(output_img, str(int(orientation)), (cx, cy), font, 0.4, (0,255,0), thickness=1)
 
     # block_counter = 1
     # for a_block in blocks:
@@ -216,30 +210,42 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
  
 
 # draw the block on the image
-def drawblock(block:block, output_img:np.array) -> np.array:
+def drawblock(blocks:List[block], output_img:np.array) -> np.array:
     """!
     @brief      Draw blocks for visualization
 
     @param      block: information of a block
                 img: output image for visualization
     """
-    half_side = block.side / 2
-    orientation = block.orientation
-    center = block.center
-    cos_angle = np.cos(orientation)
-    sin_angle = np.sin(orientation)
+    for block in blocks:
+        half_side = block.side / 2
+        orientation = block.orientation
+        center = block.center
+        cos_angle = np.cos(orientation)
+        sin_angle = np.sin(orientation)
 
-    corner1 = (int(center[0] - half_side * cos_angle - half_side * sin_angle),
-           int(center[1] + half_side * cos_angle - half_side * sin_angle))
-    corner2 = (int(center[0] + half_side * cos_angle - half_side * sin_angle),
-           int(center[1] + half_side * cos_angle + half_side * sin_angle))
-    corner3 = (int(center[0] + half_side * cos_angle + half_side * sin_angle),
-           int(center[1] - half_side * cos_angle + half_side * sin_angle))
-    corner4 = (int(center[0] - half_side * cos_angle + half_side * sin_angle),
-           int(center[1] - half_side * cos_angle - half_side * sin_angle))
-    square_coordinates = np.array([corner1, corner2, corner3, corner4], dtype=np.int32)
-    cv2.polylines(output_img, [square_coordinates], isClosed=True, color=(0, 255, 255), thickness=2)
+        color = block.colordetection(output_img)
+        cv2.putText(output_img, color, (center[0] + 5, center[1] - 5), font, 0.4, (0,255,0), thickness=1)
 
+        corner1 = (int(center[0] - half_side * cos_angle - half_side * sin_angle),
+            int(center[1] + half_side * cos_angle - half_side * sin_angle))
+        corner2 = (int(center[0] + half_side * cos_angle - half_side * sin_angle),
+            int(center[1] + half_side * cos_angle + half_side * sin_angle))
+        corner3 = (int(center[0] + half_side * cos_angle + half_side * sin_angle),
+            int(center[1] - half_side * cos_angle + half_side * sin_angle))
+        corner4 = (int(center[0] - half_side * cos_angle + half_side * sin_angle),
+            int(center[1] - half_side * cos_angle - half_side * sin_angle))
+        square_coordinates = np.array([corner1, corner2, corner3, corner4], dtype=np.int32)
+        cv2.polylines(output_img, [square_coordinates], isClosed=True, color=(0, 255, 255), thickness=2)
+        cv2.circle(output_img, (center[0], center[1]), 2, (0,255,0), -1)
+        cv2.putText(output_img, str(int(orientation)), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
+        if block.side > 40:
+           cv2.putText(output_img, "big block", (center[0] + 5, center[1] + 5), font, 0.4, (0,255,0), thickness=1)
+        else:
+           cv2.putText(output_img, "small block", (center[0] + 5, center[1] + 5), font, 0.4, (0,255,0), thickness=1)
+
+    cv2.rectangle(output_img, (220,80),(1080,720), (255, 0, 0), 2)
+    cv2.rectangle(output_img, (600,360),(730,710), (255, 0, 0), 2)
     return output_img
 
     
@@ -269,7 +275,7 @@ def detectBlocksInDepthImageCanny():
     #     approx = cv2.approxPolyDP(contour, epsilon, True)
     #     if len(approx) == 2:
     #         cv2.drawContours(rgb_img, contour, -1, (0,255,255), thickness = 1)
-    #         theta = cv2.minAreaRect(contour)[2]
+    #         orientation = cv2.minAreaRect(contour)[2]
     #         M = cv2.moments(contour)
     #         cx = 1
     #         cy = 1
@@ -277,7 +283,7 @@ def detectBlocksInDepthImageCanny():
     #             cx = int(M['m10']/M['m00'])
     #             cy = int(M['m01']/M['m00'])
     #         cv2.circle(rgb_img,(cx,cy),3,(0,255,0),-1)
-    #         cv2.putText(rgb_img, str(int(theta)), (cx, cy), font, 0.5, (0,255,0), thickness=1)
+    #         cv2.putText(rgb_img, str(int(orientation)), (cx, cy), font, 0.5, (0,255,0), thickness=1)
 
     # cv2.imshow("original edges",rgb_img)
     # print("blurred img shape is: ", blurred_edges)
