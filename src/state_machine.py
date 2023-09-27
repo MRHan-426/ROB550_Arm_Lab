@@ -33,7 +33,7 @@ class StateMachine():
         self.remembered_waypoint = []
         self.intrinsic_matrix = self.camera.intrinsic_matrix
         self.extrinsic_matrix = self.camera.extrinsic_matrix
-        self.csv_file_path = "/home/student_pm/armlab-f23/src/example.csv"
+        self.is_detect = False
         self.waypoints = [[-np.pi/2,            -0.5,         -0.3,              0.0,         0.0, 1],
                           [0.75*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
                           [0.5*-np.pi/2,        -0.5,         -0.3,        np.pi / 2,         0.0, 1],
@@ -266,6 +266,7 @@ class StateMachine():
         """
         self.current_state = "detect"
         self.next_state = "idle"
+        self.is_detect = not self.is_detect
         msg = Int32()
         msg.data = 1
         self.detect_pub.publish(msg)
