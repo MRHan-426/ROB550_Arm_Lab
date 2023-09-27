@@ -267,6 +267,11 @@ class StateMachine():
         self.current_state = "detect"
         self.next_state = "idle"
         self.is_detect = not self.is_detect
+        if is_detect:
+            self.status_message = "Detect color, position, orientation of blocks"
+        else:
+            self.status_message = "Detect End"
+
         msg = Int32()
         msg.data = 1
         self.detect_pub.publish(msg)
@@ -279,6 +284,9 @@ class StateMachine():
         """
         self.current_state = "grab"
         self.next_state = "idle"
+        if not self.is_detect:
+            print("Please click detect first, then click grab again!")
+            return None
 
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
