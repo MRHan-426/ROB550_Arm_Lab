@@ -66,12 +66,11 @@ class Camera():
         self.grid_points = np.array(np.meshgrid(self.grid_x_points, self.grid_y_points))
         self.tag_detections = np.array([])
         self.tag_locations_3D = [[-250, -25, 0],[250, -25, 0],[250, 275, 0],[-250, 275, 0], [-250,125,150], [350,25,150]]
-        # self.tag_locations_2D = [[425, 200], [925, 200], [925, 500], [425, 500]]
-        # self.tag_locations_2D = [[250, 500], [750, 500], [750, 200], [250, 200]]
         self.tag_locations_2D = [[400, 550], [900, 550], [900, 250], [400, 250]]
         self.transformation_matrix = np.zeros((3,3))
 
         """ block info """
+        self.detect_blocks = False
         self.block_contours = np.array([])
         self.block_detections = np.array([])
 
@@ -211,7 +210,7 @@ class Camera():
         """!
         @brief      projects (when we are not doing check point2, we do not use this function)
 
-                    TODO(DONE): Use the intrinsic and extrinsic matricies to project the gridpoints 
+                    Use the intrinsic and extrinsic matricies to project the gridpoints 
                     on the board into pixel coordinates. copy self.VideoFrame to self.GridFrame and
                     and draw on self.GridFrame the grid intersection points from self.grid_points
                     (hint: use the cv2.circle function to draw circles on the image)
@@ -233,7 +232,7 @@ class Camera():
 
     def birdEyesViewInGridFrame(self):
         """!
-        @brief      TODO(DONE) 
+        @brief      
                     Use affline transformation to draw bird-eyes view in the GridFrame (User2 in GUI)
                     
                     Once calibrited, use exrinsic matrix to finish this task
@@ -243,7 +242,7 @@ class Camera():
         world_points = np.array(self.tag_locations_2D).astype(np.float32)
         # Compute transformation matrix M
         if image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
-            print("ERROR: AprilTag not enough, at least four")
+            print("Wait for video input")
             return None
         elif image_points.shape[0] != world_points.shape[0]:
             print("ERROR: Image points do not match Camera points")
@@ -253,6 +252,10 @@ class Camera():
             self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
             # Create Birds-eye view
             modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
+            
+        if self.detect_blocks == true:
+            pass
+        else:
             self.GridFrame = modified_image
 
      
@@ -295,6 +298,7 @@ class Camera():
             self.tagsNotChange = self.tagsCenter
         
         self.TagImageFrame = modified_image
+
 
     def calibrateFromAprilTag(self, msg):
         self.tagsNotChange = []
@@ -371,6 +375,24 @@ class JBCalibrateListener(Node):
         if msg.data == 1:
             self.camera.calibrateFromAprilTag(msg)
 
+
+class JBDetectListener(Node):
+    def __init__(self, topic, camera):
+        super().__init__('JB_Detect_listener')
+        self.topic = topic
+        self.tag_sub = self.create_subscription(
+            Int32,
+            topic,
+            self.callback,
+            10
+        )
+        self.camera = camera
+
+    def callback(self, msg):
+        if msg.data == 1:
+            self.camera.detect_blocks = not self.camera.detect_blocks
+
+
 class CameraInfoListener(Node):
     def __init__(self, topic, camera):
         super().__init__('camera_info_listener')  
@@ -416,6 +438,7 @@ class VideoThread(QThread):
         camera_info_topic = "/camera/color/camera_info"
         tag_detection_topic = "/detections"
         JB_calibrate_topic = "/JB_calibrate"
+        JB_Detect_topic = "/JB_detect"
 
         image_listener = ImageListener(image_topic, self.camera)
         depth_listener = DepthListener(depth_topic, self.camera)
@@ -425,6 +448,8 @@ class VideoThread(QThread):
                                                       self.camera)
         JB_calibrate_listener = JBCalibrateListener(JB_calibrate_topic,
                                                       self.camera)  
+        JB_detect_listener = JBDetectListener(JB_Detect_topic,
+                                                      self.camera)  
 
         self.executor = SingleThreadedExecutor()
         self.executor.add_node(image_listener)
@@ -432,6 +457,7 @@ class VideoThread(QThread):
         self.executor.add_node(camera_info_listener)
         self.executor.add_node(tag_detection_listener)
         self.executor.add_node(JB_calibrate_listener)
+        self.executor.add_node(JB_detect_listener)
 
 
     def run(self):
@@ -447,8 +473,8 @@ class VideoThread(QThread):
                 rgb_frame = self.camera.convertQtVideoFrame()
                 depth_frame = self.camera.convertQtDepthFrame()
                 tag_frame = self.camera.convertQtTagImageFrame()
-                # During check point2, rel
-                self.camera.projectGridInRGBImage()
+                # this function is for check point2
+                # self.camera.projectGridInRGBImage()
                 self.camera.birdEyesViewInGridFrame()
                 grid_frame = self.camera.convertQtGridFrame()
                 if ((rgb_frame != None) & (depth_frame != None)):

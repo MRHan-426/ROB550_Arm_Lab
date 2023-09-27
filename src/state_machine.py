@@ -47,13 +47,19 @@ class StateMachine():
                         #   [0.0,                  0.0,          0.0,              0.0,         0.0, 1]]
         self.node = rclpy.create_node('JB_node')
         
-        self.publisher = self.node.create_publisher(
+        self.replay_pub = self.node.create_publisher(
             Int32,
             'JB_replay',
             10
         )
 
         self.calibrate_pub = self.node.create_publisher(
+            Int32,
+            'JB_calibrate',
+            10
+        )
+
+        self.detect_pub = self.node.create_publisher(
             Int32,
             'JB_calibrate',
             10
@@ -75,7 +81,7 @@ class StateMachine():
 
                     This is run in its own thread.
 
-                    TODO: Add states and funcitons as needed.
+                    Add states and funcitons as needed.
         """
         if self.next_state == "initialize_rxarm":
             self.initialize_rxarm()
@@ -215,7 +221,7 @@ class StateMachine():
 
         msg = Int32()
         msg.data = 1
-        self.publisher.publish(msg)
+        self.replay_pub.publish(msg)
 
         self.rxarm.enable_torque()
         time.sleep(0.2)
@@ -233,33 +239,39 @@ class StateMachine():
                 time.sleep(0.3)
 
         msg.data = 0
-        self.publisher.publish(msg)
+        self.replay_pub.publish(msg)
         self.next_state = "idle"
 
 
     def calibrate(self):
         """!
         @brief      Gets the user input to perform the calibration
+        
+        @rostopic   'JB_calibrate', Int32, when data is set to 1, start calibrate.
         """
         self.current_state = "calibrate"
         self.next_state = "idle"
-
-        """TODO Perform camera calibration routine here"""
-        self.status_message = "Calibration - Completed Calibration"
-
         msg = Int32()
         msg.data = 1
         self.calibrate_pub.publish(msg)
         msg.data = 0
         self.calibrate_pub.publish(msg)
+        self.status_message = "Calibration - Completed Calibration"
 
 
-    """ TODO """
     def detect(self):
         """!
-        @brief      Detect the blocks
+        @brief      Detect the blocks. If click again, stop detect.
+
+        @rostopic   'JB_detect', Int32, when data is set to 1, start detect.
         """
-        time.sleep(1)
+        self.current_state = "detect"
+        self.next_state = "idle"
+        msg = Int32()
+        msg.data = 1
+        self.detect_pub.publish(msg)
+        self.status_message = "Detect color, position, orientation of blocks"
+
 
     def grab(self):
         """!
