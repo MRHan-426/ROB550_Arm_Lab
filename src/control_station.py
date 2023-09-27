@@ -107,7 +107,9 @@ class Gui(QMainWindow):
         self.ui.btnUser6.clicked.connect(partial(nxt_if_arm_init, 'replay'))
         self.ui.btnUser7.setText('Detect')
         self.ui.btnUser7.clicked.connect(partial(nxt_if_arm_init, 'detect'))
-        
+        self.ui.btnUser8.setText('Grab')
+        self.ui.btnUser8.clicked.connect(partial(nxt_if_arm_init, 'grab'))
+
         # Sliders
         for sldr in self.joint_sliders:
             sldr.valueChanged.connect(self.sliderChange)
@@ -221,69 +223,6 @@ class Gui(QMainWindow):
             self.ui.chk_directcontrol.setChecked(False)
 
 
-    def transformFromImageToWorldFrame(self, pos: tuple) -> tuple:
-        """!
-        @brief      transform From Image To WorldFrame
-
-        @param      pos: x, y z coordinate in image frame
-                    pos[0]:x, pos[1]:y
-        """
-        
-
-        if self.ui.radioVideo.isChecked():
-            original_x = pos[0]
-            original_y = pos[1]
-            
-        elif self.ui.radioUsr2.isChecked():
-            inv_transformation_matrix = np.linalg.inv(self.camera.transformation_matrix)
-            transformed_coords = np.array([pos[0], pos[1], 1])
-            original_coords = np.matmul(inv_transformation_matrix, transformed_coords)
-
-            original_x = original_coords[0] / original_coords[2]
-            original_y = original_coords[1] / original_coords[2]
-        
-        z = self.camera.DepthFrameRaw[int(original_y)][int(original_x)]
-        if self.camera.DepthFrameRaw.any() != 0:
-            
-            if self.camera.cameraCalibrated == True:
-                T = self.camera.extrinsic_matrix[:,3]
-                R = self.camera.extrinsic_matrix[:,0:3]
-
-                K2 = self.camera.extrinsic_matrix
-                K1 = self.camera.intrinsic_matrix
-
-                P_w =  np.linalg.inv(K2) @ np.vstack((z * np.linalg.inv(K1) @ np.array([[original_x],[original_y],[1]]), 1))
-            
-            else: # use default extrinsic parameters
-                t = np.array([0, 365, 1000])
-                R = np.array([[0.999, 0.0094, -0.0426],
-                            [0.0, -0.9763,  -0.2164],
-                            [-0.0436, 0.2162, -0.9754]])
-
-                u = original_x
-                v = original_y
-
-                fx, fy = self.camera.intrinsic_matrix[0, 0], self.camera.intrinsic_matrix[1, 1]
-                cx, cy = self.camera.intrinsic_matrix[0, 2], self.camera.intrinsic_matrix[1, 2]
-                
-                x_prime = (u - cx) / fx
-                y_prime = (v - cy) / fy
-
-                X_c = z * x_prime
-                Y_c = z * y_prime
-                Z_c = z
-                P_c = np.array([X_c, Y_c, Z_c]).reshape(3, 1)
-                t = t.reshape(3,1)
-
-                P_w = R @ P_c + t
-            
-            return (P_w[0], P_w[1], P_w[2])
-
-        else:
-            print("ERROR: Cannot load depth information")
-            return (0, 0, 0)
-
-
     def trackMouse(self, mouse_event):
         """!
         @brief      Show the mouse position in GUI
@@ -295,8 +234,20 @@ class Gui(QMainWindow):
         """
 
         pt = mouse_event.pos()
+        
+        if self.ui.radioVideo.isChecked():
+            original_x = pt.x()
+            original_y = pt.y()
+            
+        elif self.ui.radioUsr2.isChecked():
+            inv_transformation_matrix = np.linalg.inv(self.camera.transformation_matrix)
+            transformed_coords = np.array([pt.x(), pt.y(), 1])
+            original_coords = np.matmul(inv_transformation_matrix, transformed_coords)
 
-        pxyz = self.transformFromImageToWorldFrame((pt.x(), pt.y()))
+            original_x = original_coords[0] / original_coords[2]
+            original_y = original_coords[1] / original_coords[2]
+
+        pxyz = self.camera.transformFromImageToWorldFrame((original_x, original_y))
 
         self.ui.rdoutMousePixels.setText("(%.0f,%.0f,%.0f)" %
                                             (pt.x(), pt.y(), pxyz[2]))
@@ -315,12 +266,20 @@ class Gui(QMainWindow):
         pt = mouse_event.pos()
         self.camera.last_click[0] = pt.x()
         self.camera.last_click[1] = pt.y()
+            
+        if self.ui.radioUsr2.isChecked():
+            inv_transformation_matrix = np.linalg.inv(self.camera.transformation_matrix)
+            transformed_coords = np.array([pt.x(), pt.y(), 1])
+            original_coords = np.matmul(inv_transformation_matrix, transformed_coords)
 
-        self.camera.last_click_worldframe = self.transformFromImageToWorldFrame((pt.y(), pt.x()))
-
-        self.camera.new_click = True
+            original_x = original_coords[0] / original_coords[2]
+            original_y = original_coords[1] / original_coords[2]
+            self.camera.last_click_worldframe = self.camera.transformFromImageToWorldFrame((original_x, original_y))
+        else:
+            self.camera.last_click_worldframe = self.camera.transformFromImageToWorldFrame((pt.x(), pt.y()))
         
-        # print(self.camera.last_click)
+        self.camera.new_click = True
+
 
     def initRxarm(self):
         """!

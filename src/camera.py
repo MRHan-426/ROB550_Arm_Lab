@@ -72,6 +72,7 @@ class Camera():
 
         """ block info """
         self.detect_blocks = False
+        self.blocks = []
         self.block_contours = np.array([])
         self.block_detections = np.array([])
 
@@ -212,6 +213,7 @@ class Camera():
                 cv2.circle(modified_image, point_pos, 3, (0, 255, 0), thickness=-1)
             self.VideoFrame = modified_image
 
+
     def birdEyesViewInGridFrame(self):
         """!
         @brief      
@@ -236,8 +238,8 @@ class Camera():
             modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
             
         if self.detect_blocks == true:
-            blocks = detectBlocksInDepthImage(self.DepthFrameRaw, intrinsic_matrix=self.intrinsic_matrix, extrinsic_matrix=self.extrinsic_matrix)
-            modified_image = drawblock(blocks, modified_image)
+            self.blocks = detectBlocksInDepthImage(self.DepthFrameRaw, intrinsic_matrix=self.intrinsic_matrix, extrinsic_matrix=self.extrinsic_matrix)
+            modified_image = drawblock(self.blocks, modified_image)
             self.GridFrame = modified_image
 
         else:
@@ -248,7 +250,7 @@ class Camera():
         """
         @brief      Draw tags from the tag detection
 
-                    TODO: Use the tag detections output, to draw the corners/center/tagID of
+                    Use the tag detections output, to draw the corners/center/tagID of
                     the apriltags on the copy of the RGB image. And output the video to self.TagImageFrame.
                     Message type can be found here: /opt/ros/humble/share/apriltag_msgs/msg
 
@@ -308,6 +310,50 @@ class Camera():
         print(self.extrinsic_matrix)
         print("======================================================")
         self.cameraCalibrated = True
+
+            
+    def transformFromImageToWorldFrame(self, pos: tuple) -> tuple:
+        """!
+        @brief      transform From Image To WorldFrame
+
+        @param      pos: x, y z coordinate in image frame
+                    pos[0]:x, pos[1]:y
+        """
+        
+        z = self.DepthFrameRaw[int(pos[1])][int(pos[0])]
+        if self.DepthFrameRaw.any() != 0:
+            
+            if self.cameraCalibrated == True:
+                T = self.extrinsic_matrix[:,3]
+                R = self.extrinsic_matrix[:,0:3]
+
+                K2 = self.extrinsic_matrix
+                K1 = self.intrinsic_matrix
+
+                P_w =  np.linalg.inv(K2) @ np.vstack((z * np.linalg.inv(K1) @ np.array([[pos[0]],[pos[1]],[1]]), 1))
+            
+            else: # use default extrinsic parameters
+                t = np.array([0, 365, 1000])
+                R = np.array([[0.999, 0.0094, -0.0426],
+                            [0.0, -0.9763,  -0.2164],
+                            [-0.0436, 0.2162, -0.9754]])
+
+                u = pos[0]
+                v = pos[1]
+                fx, fy = self.intrinsic_matrix[0, 0], self.intrinsic_matrix[1, 1]
+                cx, cy = self.intrinsic_matrix[0, 2], self.intrinsic_matrix[1, 2]
+                x_prime = (u - cx) / fx
+                y_prime = (v - cy) / fy
+                X_c = z * x_prime
+                Y_c = z * y_prime
+                Z_c = z
+                P_c = np.array([X_c, Y_c, Z_c]).reshape(3, 1)
+                t = t.reshape(3,1)
+                P_w = R @ P_c + t
+            return (P_w[0], P_w[1], P_w[2])
+        else:
+            print("ERROR: Cannot load depth information")
+            return (0, 0, 0)
 
 
 class ImageListener(Node):

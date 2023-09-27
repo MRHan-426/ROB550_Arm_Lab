@@ -34,17 +34,16 @@ class StateMachine():
         self.intrinsic_matrix = self.camera.intrinsic_matrix
         self.extrinsic_matrix = self.camera.extrinsic_matrix
         self.csv_file_path = "/home/student_pm/armlab-f23/src/example.csv"
-        self.waypoints = [[-0.7378150601204649 ,  0.7514994246667079 ,  -0.6479373977680756 ,  1.4672342998962642 ,  0.8329812666744316, 1]]
-                        # [[-np.pi/2,            -0.5,         -0.3,              0.0,         0.0, 1],
-                        #   [0.75*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
-                        #   [0.5*-np.pi/2,        -0.5,         -0.3,        np.pi / 2,         0.0, 1],
-                        #   [0.25*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
-                        #   [0.0,                  0.0,          0.0,              0.0,         0.0, 1],
-                        #   [0.25*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
-                        #   [0.5*np.pi/2,          0.5,          0.3,         -np.pi/3,         0.0, 1],
-                        #   [0.75*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
-                        #   [np.pi/2,              0.5,          0.3,         -np.pi/3,         0.0, 1],
-                        #   [0.0,                  0.0,          0.0,              0.0,         0.0, 1]]
+        self.waypoints = [[-np.pi/2,            -0.5,         -0.3,              0.0,         0.0, 1],
+                          [0.75*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
+                          [0.5*-np.pi/2,        -0.5,         -0.3,        np.pi / 2,         0.0, 1],
+                          [0.25*-np.pi/2,        0.5,          0.3,         -np.pi/3,     np.pi/2, 1],
+                          [0.0,                  0.0,          0.0,              0.0,         0.0, 1],
+                          [0.25*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
+                          [0.5*np.pi/2,          0.5,          0.3,         -np.pi/3,         0.0, 1],
+                          [0.75*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
+                          [np.pi/2,              0.5,          0.3,         -np.pi/3,         0.0, 1],
+                          [0.0,                  0.0,          0.0,              0.0,         0.0, 1]]
         self.node = rclpy.create_node('JB_node')
         
         self.replay_pub = self.node.create_publisher(
@@ -151,7 +150,7 @@ class StateMachine():
         for n in self.waypoints:
             print("reached")
             self.rxarm.set_positions(n[:-1])
-            time.sleep(3)
+            rospy.sleep(3)
         self.next_state = "idle"
 
     def record(self):
@@ -163,7 +162,7 @@ class StateMachine():
 
         if self.remembered_waypoint == []:
             self.rxarm.sleep()
-            time.sleep(3)
+            rospy.sleep(3)
             self.rxarm.disable_torque()
             self.remembered_waypoint.append(self.waypoints[0])
         else:
@@ -185,13 +184,13 @@ class StateMachine():
         if self.remembered_waypoint != []:
             self.remembered_waypoint[-1][-1] = 0
             self.rxarm.enable_torque()
-            time.sleep(0.2)
+            rospy.sleep(0.2)
             self.rxarm.gripper.grasp()
-            time.sleep(0.5)
+            rospy.sleep(0.5)
             self.rxarm.disable_torque()
         else:
             self.rxarm.gripper.grasp()
-            time.sleep(0.5)
+            rospy.sleep(0.5)
         self.next_state = "idle"
 
     def open_gripper(self):
@@ -202,13 +201,13 @@ class StateMachine():
         self.current_state = "open_gripper"
         if self.remembered_waypoint == []:
             self.rxarm.gripper.release()
-            time.sleep(1)
+            rospy.sleep(1)
         else:
             self.remembered_waypoint[-1][-1] = 1
             self.rxarm.enable_torque()
-            time.sleep(0.2)
+            rospy.sleep(0.2)
             self.rxarm.gripper.release()
-            time.sleep(1)
+            rospy.sleep(1)
             self.rxarm.disable_torque()
         self.next_state = "idle"
         
@@ -224,19 +223,19 @@ class StateMachine():
         self.replay_pub.publish(msg)
 
         self.rxarm.enable_torque()
-        time.sleep(0.2)
+        rospy.sleep(0.2)
         self.rxarm.gripper.release()
-        time.sleep(0.2)
+        rospy.sleep(0.2)
 
         for n in self.remembered_waypoint[1:]:
             self.rxarm.set_positions(n[:-1])
-            time.sleep(1.5)
+            rospy.sleep(1.5)
             if not n[-1]:
                 self.rxarm.gripper.grasp()
-                time.sleep(0.3)
+                rospy.sleep(0.3)
             else:
                 self.rxarm.gripper.release()
-                time.sleep(0.3)
+                rospy.sleep(0.3)
 
         msg.data = 0
         self.replay_pub.publish(msg)
@@ -277,32 +276,33 @@ class StateMachine():
         """!
         @brief     use IK to grab a block at given position
         """
+        self.current_state = "grab"
+        self.next_state = "idle"
 
-        click_point = self.camera.last_click
-        if click_point != np.zeros(2):
-            print("task start")
+        while self.camera.blocks == None:
+            print("There is no blocks in the workspace!!")
+            rospy.sleep(1)
 
-            # start grab (ignore whether there is a block)
-            # convert coordinates to world frame 
-            pose = [0,0,50,np.pi/2]
-            pre_position = pose
-            pre_position[2] += 60
-            Success1,joint_pos1 = kinematics.IK_geometric(pre_position)
-            Success2,joint_pos2 = kinematics.IK_geometric(pose)
-            if Success1 and Success2:
-                self.current_state = "grab"
-                time.sleep(2)
-                self.rxarm.set_positions(joint_pos1)
-                time.sleep(2)
-                self.rxarm.set_positions(joint_pos2)
-                time.sleep(2)
-                self.next_state = "idle"
-                pass
+        print("Please click a block in the workspace")
+        grab_point = self.get_grab_point()
 
-        else:
-            pass
-        
+        while grab_point is None:
+            print("There is no block, Please click again!")
+            grab_point = self.get_grab_point()
 
+        click_point = self.camera.last_click_worldframe
+        print("Grab task start!")
+
+        self.grab_or_put_down_a_block(click_point=grab_point, is_grab=True)
+        print("Successfully grab the block, please click to put it down!")
+
+        self.camera.new_click = False
+        while not self.camera.new_click:
+            rospy.sleep(0.01)
+
+        put_down_point = self.camera.last_click_worldframe
+        self.grab_or_put_down_a_block(click_point=put_down_point, is_grab=False)
+        print("Successfully put down the block, mission complete!")
 
 
     def initialize_rxarm(self):
@@ -315,8 +315,45 @@ class StateMachine():
         if not self.rxarm.initialize():
             print('Failed to initialize the rxarm')
             self.status_message = "State: Failed to initialize the rxarm!"
-            time.sleep(5)
+            rospy.sleep(5)
         self.next_state = "idle"
+
+
+    def get_grab_point(self):
+        """!
+        @brief      Judge if it is a valid click point
+
+                    return (x,y,z) of block center in the world frame
+        """
+        self.camera.new_click = False
+        while not self.camera.new_click:
+            rospy.sleep(0.01)
+
+        for block in self.camera.blocks:
+            if block.inArea(self.camera.last_click):
+                return self.camera.transformFromImageToWorldFrame((block.center[0], block.center[1], block.depth))
+                
+        return None
+
+
+    def grab_or_put_down_a_block(self, click_point, is_grab):
+        pose = [click_point[0], click_point[1], click_point[2], np.pi/2]
+        pre_position = pose
+        pre_position[2] += 60
+        Success1, joint_pos1 = kinematics.IK_geometric(pre_position)
+        Success2, joint_pos2 = kinematics.IK_geometric(pose)
+        rospy.sleep(0.5)
+        self.rxarm.set_positions(joint_pos1)
+        rospy.sleep(0.5)
+        self.rxarm.set_positions(joint_pos2)
+        rospy.sleep(0.5)
+        if is_grab:
+            self.rxarm.gripper.grasp()
+            rospy.sleep(0.3)
+        else:
+            self.rxarm.gripper.release()
+            rospy.sleep(0.3)
+
 
 class StateMachineThread(QThread):
     """!
@@ -341,4 +378,4 @@ class StateMachineThread(QThread):
         while True:
             self.sm.run()
             self.updateStatusMessage.emit(self.sm.status_message)
-            time.sleep(0.05)
+            rospy.sleep(0.05)
