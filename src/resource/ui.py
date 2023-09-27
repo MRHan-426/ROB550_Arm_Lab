@@ -662,7 +662,7 @@ class Ui_MainWindow(object):
         self.radioVideo.setText(_translate("MainWindow", "Video"))
         self.radioDepth.setText(_translate("MainWindow", "Depth"))
         self.radioUsr1.setText(_translate("MainWindow", "Tags"))
-        self.radioUsr2.setText(_translate("MainWindow", "User 2"))
+        self.radioUsr2.setText(_translate("MainWindow", "WorkSpace"))
         self.PixelCoordLabel.setText(_translate("MainWindow", "Mouse Coordinates:"))
         self.rdoutMousePixels.setText(_translate("MainWindow", "(U,V,D)"))
         self.PixelCoordLabel_2.setText(_translate("MainWindow", "World Coordinates [mm]:"))
