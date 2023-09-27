@@ -18,7 +18,7 @@ EXTRINSIC_MATRIX = np.array([
 
 
 class block:
-    def __init__(self,center,height,side,orientation):
+    def __init__(self, center, height, side, orientation):
         self.center = center
         self.height = height
         self.side = side
@@ -69,8 +69,14 @@ class block:
         return max_color
 
 
+# def detectBlocks(depth_img, rgb_image, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_matrix = EXTRINSIC_MATRIX):
+    
+#     output_img, blocks = detectBlocksInDepthImage(depth_img, rgb_image.copy(), intrinsic_matrix, extrinsic_matrix)
+#     output_img = detectBlocksColorInRGBImage(rgb_image, blocks)
+#     return output_img
 
-def detectBlocksColorInRGBImage(img, position: tuple) -> str:
+
+def detectBlocksColorInRGBImage(img) -> str:
     """!
     @brief      Detect blocks from rgb
     
@@ -79,9 +85,7 @@ def detectBlocksColorInRGBImage(img, position: tuple) -> str:
                 return color
 
     """
-    # load the image
-    frame = cv2.imread(img)
-    img_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    img_hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
     masks = {
             "red": (cv2.inRange(img_hsv, np.array([0, 43, 46]), np.array([10, 255, 255])) + 
@@ -96,7 +100,8 @@ def detectBlocksColorInRGBImage(img, position: tuple) -> str:
 
     detected_color = "unknown"
     for color, mask in masks.items():
-            if mask[position[1], position[0]] > 0:
+        for block in blocks:
+            if mask[block.position[1], position[0]] > 0:
                 detected_color = color
 
     cv2.circle(frame, position, 5, (0, 0, 255), -1) # Red circle of radius 5
@@ -112,7 +117,7 @@ def detectBlocksColorInRGBImage(img, position: tuple) -> str:
     return detected_color
 
 
-def depth_img_affline_transformation(depth_img: np.array):
+def depth_img_affline_transformation(depth_img, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_matrix = EXTRINSIC_MATRIX):
     """!
     @brief      Use affline transformation to modify depth image
 
@@ -124,42 +129,41 @@ def depth_img_affline_transformation(depth_img: np.array):
     x = np.arange(depth_img.shape[1])
     mesh_x, mesh_y = np.meshgrid(x, y)
     Z = depth_img.astype(np.float32)
-    X = (mesh_x - INTRINISC_MATRIX[0, 2]) * Z / INTRINISC_MATRIX[0, 0]
-    Y = (mesh_y - INTRINISC_MATRIX[1, 2]) * Z / INTRINISC_MATRIX[1, 1]
+    X = (mesh_x - intrinsic_matrix[0, 2]) * Z / intrinsic_matrix[0, 0]
+    Y = (mesh_y - intrinsic_matrix[1, 2]) * Z / intrinsic_matrix[1, 1]
 
     homogeneous_coordinates = np.stack((X, Y, Z, np.ones_like(Z)), axis=-1)
     P_c = homogeneous_coordinates.reshape(-1, 4).T
-    P_w = np.linalg.inv(EXTRINSIC_MATRIX) @ P_c
+    P_w = np.linalg.inv(extrinsic_matrix) @ P_c
     points_3d = P_w.T[:, 2].reshape(depth_img.shape[0], depth_img.shape[1], 1)
 
     return points_3d
 
 
-
-def detectBlocksInDepthImage(rgb_img,depth_img):
+def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_matrix = EXTRINSIC_MATRIX):
     """!
     @brief      Detect blocks from depth
 
-                TODO: Implement a blob detector to find blocks in the depth image
+                Implement a blob detector to find blocks in the depth image
+
+    @param      depth_img: 720x1280x1 raw depth image
+                intrinsic and extrinsic of camera
+                
+                return: a list of blocks
     """
-    depth_img = cv2.imread(depth_img, cv2.IMREAD_UNCHANGED)
-    rgb_img = cv2.imread(rgb_img)
+    if type(depth_img) == string:
+        depth_img = cv2.imread(depth_img, cv2.IMREAD_UNCHANGED)
    
-    depth_data = depth_img_affline_transformation(depth_img)
+    depth_data = depth_img_affline_transformation(depth_img, intrinsic_matrix, extrinsic_matrix)
 
-    cv2.imwrite("affline_depth4.png", depth_data)
-    depth_data2 = cv2.imread("affline_depth4.png")
-
-    gray_image = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2GRAY)
-    
     #  using depth image to detect contour
     lower = 10
     upper = 40
     mask = np.zeros_like(depth_data, dtype=np.uint8)
     cv2.rectangle(mask, (220,80),(1080,720), 255, cv2.FILLED)
     cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
-    cv2.rectangle(depth_data2, (220,80),(1080,720), (255, 0, 0), 2)
-    cv2.rectangle(depth_data2, (600,360),(730,710), (255, 0, 0), 2)
+    # cv2.rectangle(output_img, (220,80),(1080,720), (255, 0, 0), 2)
+    # cv2.rectangle(output_img, (600,360),(730,710), (255, 0, 0), 2)
     thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -181,35 +185,47 @@ def detectBlocksInDepthImage(rgb_img,depth_img):
                 if M['m00'] != 0:
                     cx = int(M['m10']/M['m00'])
                     cy = int(M['m01']/M['m00'])
-                drawblock([cx,cy],diagonal_length,theta,depth_data2)
+                # drawblock([cx,cy], diagonal_length, theta, output_img)
 
                 if diagonal_length > 40:
                     side = 40
+                    # cv2.putText(output_img, "big block", (cx + 5, cy + 5), font, 0.4, (0,255,0), thickness=1)
+
                 else:
                     side = 20
-                a_block = block([cx,cy],0,side,theta)
+                    # cv2.putText(output_img, "small block", (cx + 5, cy + 5), font, 0.4, (0,255,0), thickness=1)
+
+                a_block = block([cx,cy] , 0, side, theta)
                 blocks.append(a_block)
 
-                cv2.circle(depth_data2,(cx,cy),2,(0,255,0),-1)
-                cv2.putText(depth_data2, str(int(theta)), (cx, cy), font, 0.4, (0,255,0), thickness=1)
+                # cv2.circle(output_img, (cx,cy), 2, (0,255,0), -1)
+                # cv2.putText(output_img, str(int(theta)), (cx, cy), font, 0.4, (0,255,0), thickness=1)
 
-    block_counter = 1
-    for a_block in blocks:
-        print("Block NO.", block_counter, " | side: ", a_block.side,  " | position: ", a_block.center[0],", ", a_block.center[1])
-        block_counter += 1
+    # block_counter = 1
+    # for a_block in blocks:
+    #     print("Block NO.", block_counter, " | side: ", a_block.side,  " | position: ", a_block.center[0],", ", a_block.center[1])
+    #     block_counter += 1
 
-    cv2.imshow("Image window", depth_data2)
-    cv2.waitKey(0)
-    # print("block size is: ", len(blocks))
+    # debug
+    if __name__ == '__main__':
+        cv2.imshow("Image window", depth_data2)
+        cv2.waitKey(0)
+        # print("block size is: ", len(blocks))
     
-
-
+    return blocks
+ 
 
 # draw the block on the image
-def drawblock(center,diag,orientation,img):
-    side = diag/np.sqrt(2)
-    half_side = side/2
-    orientation = np.deg2rad(orientation)
+def drawblock(block:block, output_img:np.array) -> np.array:
+    """!
+    @brief      Draw blocks for visualization
+
+    @param      block: information of a block
+                img: output image for visualization
+    """
+    half_side = block.side / 2
+    orientation = block.orientation
+    center = block.center
     cos_angle = np.cos(orientation)
     sin_angle = np.sin(orientation)
 
@@ -222,10 +238,11 @@ def drawblock(center,diag,orientation,img):
     corner4 = (int(center[0] - half_side * cos_angle + half_side * sin_angle),
            int(center[1] - half_side * cos_angle - half_side * sin_angle))
     square_coordinates = np.array([corner1, corner2, corner3, corner4], dtype=np.int32)
-    cv2.polylines(img, [square_coordinates], isClosed=True, color=(0, 255, 255), thickness=2)
+    cv2.polylines(output_img, [square_coordinates], isClosed=True, color=(0, 255, 255), thickness=2)
+
+    return output_img
 
     
-
 def detectBlocksInDepthImageCanny():
     pass
     # # Edge Detection Using Canny

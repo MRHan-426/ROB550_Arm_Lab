@@ -17,6 +17,7 @@ from std_msgs.msg import String, Int32
 from sensor_msgs.msg import Image, CameraInfo
 from apriltag_msgs.msg import *
 from cv_bridge import CvBridge, CvBridgeError
+from block_detection import *
 
 # default
 INTRINISC_MATRIX = np.array([[918.2490195188435, 0.0, 636.4533753942957],
@@ -188,24 +189,6 @@ class Camera():
         """
         pass
 
-    def blockDetector(self):
-        """!
-        @brief      Detect blocks from rgb
-
-                    TODO: Implement your block detector here. You will need to locate blocks in 3D space and put their XYZ
-                    locations in self.block_detections
-        """
-        pass
-
-    def detectBlocksInDepthImage(self):
-        """!
-        @brief      Detect blocks from depth
-
-                    TODO: Implement a blob detector to find blocks in the depth image
-        """
-        pass
-
-
     def projectGridInRGBImage(self):
         """!
         @brief      projects (when we are not doing check point2, we do not use this function)
@@ -228,7 +211,6 @@ class Camera():
                 point_pos = (int(px), int(py))
                 cv2.circle(modified_image, point_pos, 3, (0, 255, 0), thickness=-1)
             self.VideoFrame = modified_image
-
 
     def birdEyesViewInGridFrame(self):
         """!
@@ -254,7 +236,10 @@ class Camera():
             modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
             
         if self.detect_blocks == true:
-            pass
+            blocks = detectBlocksInDepthImage(self.DepthFrameRaw, intrinsic_matrix=self.intrinsic_matrix, extrinsic_matrix=self.extrinsic_matrix)
+            modified_image = drawblock(blocks, modified_image)
+            self.GridFrame = modified_image
+
         else:
             self.GridFrame = modified_image
 
