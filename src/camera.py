@@ -354,7 +354,7 @@ class Camera():
                 P_c = np.array([X_c, Y_c, Z_c]).reshape(3, 1)
                 t = t.reshape(3,1)
                 P_w = R @ P_c + t
-            return (P_w[0], P_w[1], P_w[2])
+            return (P_w[0][0], P_w[1][0], P_w[2][0])
         else:
             print("ERROR: Cannot load depth information")
             return (0, 0, 0)

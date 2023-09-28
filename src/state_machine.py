@@ -311,6 +311,7 @@ class StateMachine():
             time.sleep(0.01)
 
         put_down_point = self.camera.last_click_worldframe
+        print("put_down_point", put_down_point)
         self.grab_or_put_down_a_block(click_point=put_down_point, is_grab=False)
         print("Successfully put down the block, mission complete!")
 
@@ -341,7 +342,6 @@ class StateMachine():
 
         for block in self.camera.blocks:
             if block.inArea(self.camera.last_click):
-                print("transformFromImageToWorldFrame", (block.center[0], block.center[1]))
                 return self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0], block.depth))
                 
         return None
@@ -349,30 +349,64 @@ class StateMachine():
 
     def grab_or_put_down_a_block(self, click_point, is_grab):
         # click_point[0] is np.array
-        pose = [click_point[0][0], click_point[1][0], click_point[2][0], np.pi/2]
+        if is_grab:
+            pose = [click_point[0], click_point[1], click_point[2] - 10, np.pi/2]
+        else:
+            pose = [click_point[0], click_point[1], click_point[2] + 15, np.pi/2]
+
         # pose = [click_point[0][0], click_point[1][0], 50, np.pi/2]
 
-        pre_position = pose.copy()
-        pre_position[2] += 20
-        success1, joint_pos1 = kinematics.IK_geometric(pre_position)
-        success2, joint_pos2 = kinematics.IK_geometric(pose)
-        if success1:
-            self.rxarm.set_positions(joint_pos1)
-            time.sleep(3)
-            if success2:
-                self.rxarm.set_positions(joint_pos2)
-                time.sleep(3)
-            else:
-                print("Point cannot access!!")
-        else:
-            print("Pre point cannot access!!")
-        
         if is_grab:
+            self.pre_position = pose.copy()
+            self.pre_position[2] += 100
+            success1, joint_pos1 = kinematics.IK_geometric(self.pre_position)
+            success2, joint_pos2 = kinematics.IK_geometric(pose)
+            if success1:
+                self.rxarm.set_positions(joint_pos1)
+                time.sleep(3)
+                if success2:
+                    self.rxarm.set_positions(joint_pos2)
+                    time.sleep(3)
+                else:
+                    print("Point cannot access!!")
+            else:
+                print("Pre point cannot access!!")
             self.rxarm.gripper.grasp()
             time.sleep(0.3)
         else:
-            self.rxarm.gripper.release()
-            time.sleep(0.3)
+            # current_joint_angles = self.rxarm.get_positions()
+            pose3 = pose.copy()
+            pose2 = pose.copy()
+            pose2[2] += 100
+            success1, joint_pos1 = kinematics.IK_geometric(self.pre_position)
+            success2, joint_pos2 = kinematics.IK_geometric(pose2)
+            success3, joint_pos3 = kinematics.IK_geometric(pose3)
+            if success1:
+                self.rxarm.set_positions(joint_pos1)
+                time.sleep(3)
+                if success2:
+                    self.rxarm.set_positions(joint_pos2)
+                    time.sleep(3)
+                    if success3:
+                        self.rxarm.set_positions(joint_pos3)
+                        time.sleep(3)
+                        self.rxarm.gripper.release()
+                        time.sleep(0.5)
+                        self.rxarm.set_positions(joint_pos2)
+                        time.sleep(3)
+                    else:
+                        print("Cannot reach pose3 !")
+                        self.initialize_rxarm()
+                        time.sleep(1)
+                else:
+                    print("Cannot reach pose2 !")
+                    self.initialize_rxarm()
+                    time.sleep(1)
+            else:
+                print("Cannot reach pose1 !")
+                self.initialize_rxarm()
+                time.sleep(1)
+
 
 
 class StateMachineThread(QThread):
