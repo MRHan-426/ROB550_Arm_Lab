@@ -181,7 +181,7 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
             point1 = [approx[0,0,0],approx[0,0,1]]
             point2 = [approx[2,0,0],approx[2,0,1]]
             diagonal_length = np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
-            if diagonal_length > 30:             
+            if diagonal_length > 30 and diagonal_length < 60:             
                 orientation = cv2.minAreaRect(contour)[2]
                 M = cv2.moments(contour)
                 cy = 1
@@ -228,11 +228,15 @@ def drawblock(blocks:list[block], output_img:np.array) -> np.array:
                 img: output image for visualization
     """
     for block in blocks:
+        color = block.colordetection(output_img)
+        if color == "unknown":
+            continue
         half_side = block.side / 2
         orientation = block.orientation
         center = block.center[1], block.center[0]
         cos_angle = np.cos(orientation)
         sin_angle = np.sin(orientation)
+        cv2.putText(output_img, color, (center[0] + 15, center[1] - 15), font, 0.4, (0,255,0), thickness=1)
 
         color = block.colordetection(output_img)
         cv2.putText(output_img, color, (center[0] + 15, center[1] - 15), font, 0.4, (0,255,0), thickness=1)
@@ -252,9 +256,9 @@ def drawblock(blocks:list[block], output_img:np.array) -> np.array:
         cv2.putText(output_img, str(int(np.rad2deg(orientation))), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
         
         if block.side > 30:
-           cv2.putText(output_img, "big block", (center[0] + 35, center[1] + 35), font, 0.4, (0,255,0), thickness=1)
+           cv2.putText(output_img, "big block", (center[0] + 15, center[1] + 15), font, 0.4, (0,255,0), thickness=1)
         else:
-           cv2.putText(output_img, "small block", (center[0] + 35, center[1] + 35), font, 0.4, (0,255,0), thickness=1)
+           cv2.putText(output_img, "small block", (center[0] + 15, center[1] + 15), font, 0.4, (0,255,0), thickness=1)
 
     # cv2.rectangle(output_img, (220,80),(1080,720), (255, 0, 0), 2)
     # cv2.rectangle(output_img, (600,360),(730,710), (255, 0, 0), 2)
