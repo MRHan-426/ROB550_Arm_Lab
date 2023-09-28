@@ -235,7 +235,7 @@ class Gui(QMainWindow):
 
         pt = mouse_event.pos()
         
-        if self.ui.radioVideo.isChecked():
+        if not self.ui.radioUsr2.isChecked():
             original_x = pt.x()
             original_y = pt.y()
             

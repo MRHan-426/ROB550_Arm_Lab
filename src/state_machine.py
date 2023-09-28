@@ -266,14 +266,16 @@ class StateMachine():
         """
         self.current_state = "detect"
         self.next_state = "idle"
+        msg = Int32()
+
         self.is_detect = not self.is_detect
         if self.is_detect:
+            msg.data = 1
             self.status_message = "Detect color, position, orientation of blocks"
         else:
+            msg.data = 0
             self.status_message = "Detect End"
 
-        msg = Int32()
-        msg.data = 1
         self.detect_pub.publish(msg)
 
 

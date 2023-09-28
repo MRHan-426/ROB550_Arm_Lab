@@ -224,6 +224,7 @@ class Camera():
         modified_image = self.VideoFrame.copy()
         image_points = np.array(self.tagsNotChange[:4]).astype(np.float32)
         world_points = np.array(self.tag_locations_2D).astype(np.float32)
+
         # Compute transformation matrix M
         if image_points.shape[0] <= 3 or world_points.shape[0] <= 3:
             print("Wait for video input")
@@ -235,15 +236,15 @@ class Camera():
         elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
             self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
             # Create Birds-eye view
-            modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
-            
-        if self.detect_blocks == True:
-            self.blocks = detectBlocksInDepthImage(self.DepthFrameRaw, intrinsic_matrix=self.intrinsic_matrix, extrinsic_matrix=self.extrinsic_matrix)
-            modified_image = drawblock(self.blocks, modified_image)
-            self.GridFrame = modified_image
+            if self.detect_blocks == True:
+                self.blocks = detectBlocksInDepthImage(self.DepthFrameRaw, intrinsic_matrix=self.intrinsic_matrix, extrinsic_matrix=self.extrinsic_matrix)
+                modified_image = drawblock(self.blocks, modified_image)
+                modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
+                self.GridFrame = modified_image
 
-        else:
-            self.GridFrame = modified_image
+            else:
+                modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
+                self.GridFrame = modified_image
 
      
     def drawTagsInRGBImage(self, msg):
@@ -421,7 +422,10 @@ class JBDetectListener(Node):
 
     def callback(self, msg):
         if msg.data == 1:
-            self.camera.detect_blocks = not self.camera.detect_blocks
+            self.camera.detect_blocks = True
+        else:
+            self.camera.detect_blocks = False
+
 
 
 class CameraInfoListener(Node):

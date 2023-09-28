@@ -59,9 +59,9 @@ class block:
         for vertex in self.vertices:
             vx, vy = vertex
             vector = (vx - x, vy - y)
-            points.append((x + vector[0]/2, y + vector[1]/2))
+            points.append((int(x + vector[0]/2), int(y + vector[1]/2)))
         
-        color_counts = {'red':0,'blue':0,'yellow':0,'green':0,'orange':0,'purple':0,'pink':0,'unkonwn':0}
+        color_counts = {'red':0,'blue':0,'yellow':0,'green':0,'orange':0,'purple':0,'pink':0,'unknown':0}
         for point in points:
             detected_color = detectBlocksColorInRGBImage(img,tuple(point))
             color_counts[detected_color] += 1
@@ -145,9 +145,9 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
                 
                 return: a list of blocks
     """
-    if type(depth_img) == string:
+    if isinstance(depth_img, str):
         depth_img = cv2.imread(depth_img, cv2.IMREAD_UNCHANGED)
-   
+        
     depth_data = depth_img_affline_transformation(depth_img, intrinsic_matrix, extrinsic_matrix)
 
     #  using depth image to detect contour
@@ -156,8 +156,6 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
     mask = np.zeros_like(depth_data, dtype=np.uint8)
     cv2.rectangle(mask, (220,80),(1080,720), 255, cv2.FILLED)
     cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
-    # cv2.rectangle(output_img, (220,80),(1080,720), (255, 0, 0), 2)
-    # cv2.rectangle(output_img, (600,360),(730,710), (255, 0, 0), 2)
     thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -171,14 +169,14 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
             point1 = [approx[0,0,0],approx[0,0,1]]
             point2 = [approx[2,0,0],approx[2,0,1]]
             diagonal_length = np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
-            if diagonal_length > 20:             
+            if diagonal_length > 30:             
                 orientation = cv2.minAreaRect(contour)[2]
                 M = cv2.moments(contour)
-                cx = 1
                 cy = 1
+                cx = 1
                 if M['m00'] != 0:
-                    cx = int(M['m10']/M['m00'])
                     cy = int(M['m01']/M['m00'])
+                    cx = int(M['m10']/M['m00'])
                 # drawblock([cx,cy], diagonal_length, orientation, output_img)
 
                 # if diagonal_length > 40:
@@ -189,11 +187,11 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
                     # side = 20
                     # cv2.putText(output_img, "small block", (cx + 5, cy + 5), font, 0.4, (0,255,0), thickness=1)
 
-                a_block = block([cx,cy] , depth_data[cx, cy], diagonal_length / np.sqrt(2), orientation)
+                a_block = block([cy,cx] , depth_data[cy, cx], diagonal_length / np.sqrt(2), orientation)
                 blocks.append(a_block)
 
-                # cv2.circle(output_img, (cx,cy), 2, (0,255,0), -1)
-                # cv2.putText(output_img, str(int(orientation)), (cx, cy), font, 0.4, (0,255,0), thickness=1)
+                # cv2.circle(depth_data2, (cx,cy), 2, (0,255,0), -1)
+                # cv2.putText(depth_data2, str(int(orientation)), (cx, cy), font, 0.4, (0,255,0), thickness=1)
 
     # block_counter = 1
     # for a_block in blocks:
@@ -220,12 +218,12 @@ def drawblock(blocks:list[block], output_img:np.array) -> np.array:
     for block in blocks:
         half_side = block.side / 2
         orientation = block.orientation
-        center = block.center
+        center = block.center[1], block.center[0]
         cos_angle = np.cos(orientation)
         sin_angle = np.sin(orientation)
 
-        color = block.colordetection(output_img)
-        cv2.putText(output_img, color, (center[0] + 5, center[1] - 5), font, 0.4, (0,255,0), thickness=1)
+        # color = block.colordetection(output_img)
+        # cv2.putText(output_img, color, (center[0] + 5, center[1] - 5), font, 0.4, (0,255,0), thickness=1)
 
         corner1 = (int(center[0] - half_side * cos_angle - half_side * sin_angle),
             int(center[1] + half_side * cos_angle - half_side * sin_angle))
@@ -244,8 +242,8 @@ def drawblock(blocks:list[block], output_img:np.array) -> np.array:
         else:
            cv2.putText(output_img, "small block", (center[0] + 5, center[1] + 5), font, 0.4, (0,255,0), thickness=1)
 
-    cv2.rectangle(output_img, (220,80),(1080,720), (255, 0, 0), 2)
-    cv2.rectangle(output_img, (600,360),(730,710), (255, 0, 0), 2)
+    # cv2.rectangle(output_img, (220,80),(1080,720), (255, 0, 0), 2)
+    # cv2.rectangle(output_img, (600,360),(730,710), (255, 0, 0), 2)
     return output_img
 
     
