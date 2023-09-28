@@ -294,16 +294,16 @@ class StateMachine():
             time.sleep(1)
 
         print("Please click a block in the workspace")
-        grab_point,ee_orientation = self.get_grab_point()
+        grab_point, ee_orientation = self.get_grab_point()
 
         while grab_point is None:
             print("There is no block, Please click again!")
-            grab_point,ee_orientation = self.get_grab_point()
+            grab_point, ee_orientation = self.get_grab_point()
 
         # click_point = self.camera.last_click_worldframe
         print("Grab task start!")
 
-        self.grab_or_put_down_a_block(click_point=grab_point, is_grab=True)
+        self.grab_or_put_down_a_block(click_point=grab_point, is_grab=True, ee_orientation=ee_orientation)
         print("Successfully grab the block, please click to put it down!")
 
         self.camera.new_click = False
@@ -347,13 +347,14 @@ class StateMachine():
         return None
 
 
-    def grab_or_put_down_a_block(self, click_point, is_grab,ee_orientation):
+    def grab_or_put_down_a_block(self, click_point, is_grab, ee_orientation = 0):
         # click_point[0] is np.array
         # orientation should be in radian, which is the ee_orientation
+
         if is_grab:
             pose = [click_point[0], click_point[1], click_point[2] - 10, np.pi/3]
         else:
-            pose = [click_point[0], click_point[1], click_point[2] + 15, np.pi/3]
+            pose = [click_point[0], click_point[1], click_point[2] + 30, np.pi/3]
 
         if is_grab:
             self.pre_position = pose.copy()
