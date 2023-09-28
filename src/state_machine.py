@@ -344,7 +344,7 @@ class StateMachine():
             if block.inArea(self.camera.last_click):
                 return self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation
                 
-        return None
+        return None, None
 
 
     def grab_or_put_down_a_block(self, click_point, is_grab, ee_orientation = 0):
