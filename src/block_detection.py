@@ -137,6 +137,7 @@ def depth_correction(depth_img, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_m
                 return: gray image (720, 1280, 1)         
     """ 
 
+
     y = np.arange(depth_img.shape[0])
     x = np.arange(depth_img.shape[1])
     mesh_x, mesh_y = np.meshgrid(x, y)
