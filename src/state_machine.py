@@ -350,11 +350,9 @@ class StateMachine():
     def grab_or_put_down_a_block(self, click_point, is_grab):
         # click_point[0] is np.array
         if is_grab:
-            pose = [click_point[0], click_point[1], click_point[2] - 10, np.pi/2]
+            pose = [click_point[0], click_point[1], click_point[2] - 10, np.pi/3]
         else:
-            pose = [click_point[0], click_point[1], click_point[2] + 15, np.pi/2]
-
-        # pose = [click_point[0][0], click_point[1][0], 50, np.pi/2]
+            pose = [click_point[0], click_point[1], click_point[2] + 15, np.pi/3]
 
         if is_grab:
             self.pre_position = pose.copy()
