@@ -356,6 +356,7 @@ class StateMachine():
         else:
             pose = [click_point[0], click_point[1], click_point[2] + 30, np.pi/3]
 
+
         if is_grab:
             self.pre_position = pose.copy()
             self.pre_position[2] += 100
