@@ -300,7 +300,7 @@ class StateMachine():
             print("There is no block, Please click again!")
             grab_point = self.get_grab_point()
 
-        click_point = self.camera.last_click_worldframe
+        # click_point = self.camera.last_click_worldframe
         print("Grab task start!")
 
         self.grab_or_put_down_a_block(click_point=grab_point, is_grab=True)
@@ -341,22 +341,32 @@ class StateMachine():
 
         for block in self.camera.blocks:
             if block.inArea(self.camera.last_click):
-                return self.camera.transformFromImageToWorldFrame((block.center[0], block.center[1], block.depth))
+                print("transformFromImageToWorldFrame", (block.center[0], block.center[1]))
+                return self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0], block.depth))
                 
         return None
 
 
     def grab_or_put_down_a_block(self, click_point, is_grab):
-        pose = [click_point[0], click_point[1], click_point[2], np.pi/2]
-        pre_position = pose
-        pre_position[2] += 60
-        Success1, joint_pos1 = kinematics.IK_geometric(pre_position)
-        Success2, joint_pos2 = kinematics.IK_geometric(pose)
-        time.sleep(0.5)
-        self.rxarm.set_positions(joint_pos1)
-        time.sleep(0.5)
-        self.rxarm.set_positions(joint_pos2)
-        time.sleep(0.5)
+        # click_point[0] is np.array
+        pose = [click_point[0][0], click_point[1][0], click_point[2][0], np.pi/2]
+        # pose = [click_point[0][0], click_point[1][0], 50, np.pi/2]
+
+        pre_position = pose.copy()
+        pre_position[2] += 20
+        success1, joint_pos1 = kinematics.IK_geometric(pre_position)
+        success2, joint_pos2 = kinematics.IK_geometric(pose)
+        if success1:
+            self.rxarm.set_positions(joint_pos1)
+            time.sleep(3)
+            if success2:
+                self.rxarm.set_positions(joint_pos2)
+                time.sleep(3)
+            else:
+                print("Point cannot access!!")
+        else:
+            print("Pre point cannot access!!")
+        
         if is_grab:
             self.rxarm.gripper.grasp()
             time.sleep(0.3)

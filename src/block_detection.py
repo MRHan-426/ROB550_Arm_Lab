@@ -19,54 +19,66 @@ EXTRINSIC_MATRIX = np.array([
 
 class block:
     def __init__(self, center, depth, side, orientation):
-        self.center = center
+        self.center = center # height, width
         self.depth = depth
         self.side = side
         self.orientation = np.deg2rad(orientation)
-        half_length = self.side / 2.0
-        self.vertices = []
-        for i in range(4):
-            angle = self.orientation + (i * np.pi / 2)
-            x = self.center[0] + half_length * np.cos(angle)
-            y = self.center[1] + half_length * np.sin(angle)
-            self.vertices.append((x, y))
+
+        # half_length = self.side / 2.0
+        # self.vertices = []
+        # for i in range(4):
+        #     angle = self.orientation + (i * np.pi / 2)
+        #     x = self.center[0] + half_length * np.cos(angle)
+        #     y = self.center[1] + half_length * np.sin(angle)
+        #     self.vertices.append((x, y))
 
     # detect whether a point is in a square
-    def inArea(self,point):
-        x,y = point
+    def inArea(self, point):
+        width, height = point
+        print("===========================================")
+        print("point:", (height, self.center[0]))
+        print("center:", (width, self.center[1]))
+        print("===========================================")
 
-        # Calculate vectors from point to each vertex of the square
-        vectors = []
-        for vertex in self.vertices:
-            vx, vy = vertex
-            vectors.append((vx - x, vy - y))
+        if np.square(height - self.center[0]) + np.square(width - self.center[1]) < 20 * 20:
+            return True
+        
+        return False
 
-        # Calculate the cross product of consecutive vectors
-        cross_products = []
-        for i in range(len(vectors)):
-            x1, y1 = vectors[i]
-            x2, y2 = vectors[(i + 1) % len(vectors)]
-            cross_products.append(x1 * y2 - x2 * y1)
+        # # Calculate vectors from point to each vertex of the square
+        # vectors = []
+        # for vertex in self.vertices:
+        #     vx, vy = vertex
+        #     vectors.append((vx - x, vy - y))
 
-        # If all cross products have the same sign, the point is inside the square
-        return all(cp >= 0 for cp in cross_products) or all(cp <= 0 for cp in cross_products)
+        # # Calculate the cross product of consecutive vectors
+        # cross_products = []
+        # for i in range(len(vectors)):
+        #     x1, y1 = vectors[i]
+        #     x2, y2 = vectors[(i + 1) % len(vectors)]
+        #     cross_products.append(x1 * y2 - x2 * y1)
+
+        # # If all cross products have the same sign, the point is inside the square
+        # return all(cp >= 0 for cp in cross_products) or all(cp <= 0 for cp in cross_products)
     
     def colordetection(self,img):
+        detected_color = detectBlocksColorInRGBImage(img,tuple(self.center))
+        return detected_color
         # find 5 points to be detected
-        x,y = self.center
-        points = []
-        points.append(self.center)
-        for vertex in self.vertices:
-            vx, vy = vertex
-            vector = (vx - x, vy - y)
-            points.append((int(x + vector[0]/2), int(y + vector[1]/2)))
+        # x,y = self.center
+        # points = []
+        # points.append(self.center)
+        # for vertex in self.vertices:
+        #     vx, vy = vertex
+        #     vector = (vx - x, vy - y)
+        #     points.append((int(x + vector[0]/2), int(y + vector[1]/2)))
         
-        color_counts = {'red':0,'blue':0,'yellow':0,'green':0,'orange':0,'purple':0,'pink':0,'unknown':0}
-        for point in points:
-            detected_color = detectBlocksColorInRGBImage(img,tuple(point))
-            color_counts[detected_color] += 1
-        max_color = max(color_counts, key=color_counts.get)
-        return max_color
+        # color_counts = {'red':0,'blue':0,'yellow':0,'green':0,'orange':0,'purple':0,'pink':0,'unknown':0}
+        # for point in points:
+        #     detected_color = detectBlocksColorInRGBImage(img,tuple(point))
+        #     color_counts[detected_color] += 1
+        # max_color = max(color_counts, key=color_counts.get)
+        # return max_color
 
 
 def detectBlocksColorInRGBImage(img, position: tuple) -> str:
@@ -200,7 +212,7 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
 
     # debug
     if __name__ == '__main__':
-        cv2.imshow("Image window", depth_data2)
+        cv2.imshow("Image window", depth_data)
         cv2.waitKey(0)
         # print("block size is: ", len(blocks))
     
@@ -222,8 +234,8 @@ def drawblock(blocks:list[block], output_img:np.array) -> np.array:
         cos_angle = np.cos(orientation)
         sin_angle = np.sin(orientation)
 
-        # color = block.colordetection(output_img)
-        # cv2.putText(output_img, color, (center[0] + 5, center[1] - 5), font, 0.4, (0,255,0), thickness=1)
+        color = block.colordetection(output_img)
+        cv2.putText(output_img, color, (center[0] + 15, center[1] - 15), font, 0.4, (0,255,0), thickness=1)
 
         corner1 = (int(center[0] - half_side * cos_angle - half_side * sin_angle),
             int(center[1] + half_side * cos_angle - half_side * sin_angle))
@@ -236,11 +248,13 @@ def drawblock(blocks:list[block], output_img:np.array) -> np.array:
         square_coordinates = np.array([corner1, corner2, corner3, corner4], dtype=np.int32)
         cv2.polylines(output_img, [square_coordinates], isClosed=True, color=(0, 255, 255), thickness=2)
         cv2.circle(output_img, (center[0], center[1]), 2, (0,255,0), -1)
-        cv2.putText(output_img, str(int(orientation)), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
-        if block.side > 40:
-           cv2.putText(output_img, "big block", (center[0] + 5, center[1] + 5), font, 0.4, (0,255,0), thickness=1)
+
+        cv2.putText(output_img, str(int(np.rad2deg(orientation))), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
+        
+        if block.side > 30:
+           cv2.putText(output_img, "big block", (center[0] + 35, center[1] + 35), font, 0.4, (0,255,0), thickness=1)
         else:
-           cv2.putText(output_img, "small block", (center[0] + 5, center[1] + 5), font, 0.4, (0,255,0), thickness=1)
+           cv2.putText(output_img, "small block", (center[0] + 35, center[1] + 35), font, 0.4, (0,255,0), thickness=1)
 
     # cv2.rectangle(output_img, (220,80),(1080,720), (255, 0, 0), 2)
     # cv2.rectangle(output_img, (600,360),(730,710), (255, 0, 0), 2)

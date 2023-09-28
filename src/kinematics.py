@@ -206,8 +206,8 @@ def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None,):
     x = pose[0]
     y = pose[1]
     z = pose[2]
-    phi = np.deg2rad(pose[3])
-    block_ori = np.pi/2 - block_ori
+    phi = pose[3]
+    # block_ori = np.pi/2 - block_ori
 
     if z < 0:
         print("[Target Pose Error] Manipulator cannot touch the plane")

@@ -264,18 +264,23 @@ class Gui(QMainWindow):
         """
         """ Get mouse posiiton """
         pt = mouse_event.pos()
-        self.camera.last_click[0] = pt.x()
-        self.camera.last_click[1] = pt.y()
+
             
         if self.ui.radioUsr2.isChecked():
+            # inverse affline transformation
             inv_transformation_matrix = np.linalg.inv(self.camera.transformation_matrix)
             transformed_coords = np.array([pt.x(), pt.y(), 1])
             original_coords = np.matmul(inv_transformation_matrix, transformed_coords)
-
             original_x = original_coords[0] / original_coords[2]
             original_y = original_coords[1] / original_coords[2]
+            self.camera.last_click[0] = original_x
+            self.camera.last_click[1] = original_y
+            
+            # image to world
             self.camera.last_click_worldframe = self.camera.transformFromImageToWorldFrame((original_x, original_y))
         else:
+            self.camera.last_click[0] = pt.x()
+            self.camera.last_click[1] = pt.y()
             self.camera.last_click_worldframe = self.camera.transformFromImageToWorldFrame((pt.x(), pt.y()))
         
         self.camera.new_click = True
