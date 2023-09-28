@@ -111,7 +111,7 @@ def detectBlocksColorInRGBImage(img, position: tuple) -> str:
     return detected_color
 
 
-def depth_img_affline_transformation(depth_img, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_matrix = EXTRINSIC_MATRIX):
+def depth_correction(depth_img, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_matrix = EXTRINSIC_MATRIX):
     """!
     @brief      Use affline transformation to modify depth image
 
@@ -148,7 +148,7 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
     if isinstance(depth_img, str):
         depth_img = cv2.imread(depth_img, cv2.IMREAD_UNCHANGED)
         
-    depth_data = depth_img_affline_transformation(depth_img, intrinsic_matrix, extrinsic_matrix)
+    depth_data = depth_correction(depth_img, intrinsic_matrix, extrinsic_matrix)
 
     #  using depth image to detect contour
     lower = 10
