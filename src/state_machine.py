@@ -294,11 +294,11 @@ class StateMachine():
             time.sleep(1)
 
         print("Please click a block in the workspace")
-        grab_point = self.get_grab_point()
+        grab_point,ee_orientation = self.get_grab_point()
 
         while grab_point is None:
             print("There is no block, Please click again!")
-            grab_point = self.get_grab_point()
+            grab_point,ee_orientation = self.get_grab_point()
 
         # click_point = self.camera.last_click_worldframe
         print("Grab task start!")
@@ -342,13 +342,14 @@ class StateMachine():
 
         for block in self.camera.blocks:
             if block.inArea(self.camera.last_click):
-                return self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0], block.depth))
+                return self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation
                 
         return None
 
 
-    def grab_or_put_down_a_block(self, click_point, is_grab):
+    def grab_or_put_down_a_block(self, click_point, is_grab,ee_orientation):
         # click_point[0] is np.array
+        # orientation should be in radian, which is the ee_orientation
         if is_grab:
             pose = [click_point[0], click_point[1], click_point[2] - 10, np.pi/3]
         else:
@@ -357,8 +358,8 @@ class StateMachine():
         if is_grab:
             self.pre_position = pose.copy()
             self.pre_position[2] += 100
-            success1, joint_pos1 = kinematics.IK_geometric(self.pre_position)
-            success2, joint_pos2 = kinematics.IK_geometric(pose)
+            success1, joint_pos1 = kinematics.IK_geometric(self.pre_position,block_ori=ee_orientation)
+            success2, joint_pos2 = kinematics.IK_geometric(pose,block_ori=ee_orientation)
             if success1:
                 self.rxarm.set_positions(joint_pos1)
                 time.sleep(3)
