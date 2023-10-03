@@ -484,10 +484,6 @@ class StateMachine():
         """!
         @brief      automatically go to a position and pick the block there
         """
-        
-        x = target_pos[0].copy()
-        y = target_pos[1].copy()
-        z = target_pos[2].copy()
         orientation = block_ori.copy()
         
         # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
@@ -515,6 +511,38 @@ class StateMachine():
         else:
             print("Unreachable Position!")
 
+
+    def auto_place(self,target_pos,target_orientation):
+        """!
+        @brief      automatically go to a position and place the block there
+        """
+        orientation = target_orientation.copy()
+        
+        # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
+        pos1,pos2,pos3 = target_pos.copy()
+        place_offset = 20 # compensation for block height
+        place_height = 80 # place gripper above block
+        pos2[2] = pos2[2] - place_offset
+        pos1[2] = pos1[2] + place_height
+        pos3[2] = pos3[2] + place_height
+
+        reachable1, joint_angles1 = self.loose_pose_compute(pos1)
+        reachable2, joint_angles2 = self.pose_compute(pos2,orientation)
+
+        if reachable1 and reachable2:
+            self.rxarm.set_positions(joint_angles1)
+            time.sleep(2)
+            self.rxarm.set_positions(joint_angles2)
+            time.sleep(2)
+            self.rxarm.gripper.realease()
+            time.sleep(2)
+            self.rxarm.set_positions(joint_angles1)
+            time.sleep(1)
+            print("Successfully pick the block!")
+        else:
+            print("Unreachable Position!")
+        
+    
     
     # Event 1:Pick'n sort!
     def pick_n_sort(self):

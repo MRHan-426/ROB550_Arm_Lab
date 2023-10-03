@@ -180,6 +180,19 @@ def to_s_matrix(w, v):
                 [0,0,0,0]])
     return s
 
+def Joint_Pos_Compensation(joint_angles):
+    """!
+    @breif      do position compensation for joint angles (generally compensation for gravity)
+    """
+
+    # rough version
+    joint_angles_corrected = joint_angles.copy()
+    joint_angles_corrected[1] = joint_angles_corrected[1] + np.pi/90
+    joint_angles_corrected[2] = joint_angles_corrected[1] + np.pi/90
+    joint_angles_corrected[3] = joint_angles_corrected[1] + np.pi/90
+    return joint_angles_corrected
+
+
 def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None,):
     """!
     @brief      Get all possible joint configs that produce the pose.
@@ -275,7 +288,8 @@ def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None,):
     
     print("Success! The joint angles are: ", np.rad2deg(theta1), ", ", np.rad2deg(theta2), ", ", np.rad2deg(theta3), ", ", np.rad2deg(theta4), ", ", np.rad2deg(theta5), ", ")
     print("Success! The joint angles(deg) are: ", theta1, ", ", theta2, ", ", theta3, ", ", theta4, ", ", theta5)
-    return True, [theta1,theta2,theta3,theta4,theta5]
+    joint_angles = Joint_Pos_Compensation([theta1,theta2,theta3,theta4,theta5])
+    return True, joint_angles
     pass
 
 
