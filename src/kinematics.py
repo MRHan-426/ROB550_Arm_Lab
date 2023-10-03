@@ -238,8 +238,9 @@ def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None,):
         print("[IK ERROR Incorrect Block Orientation]")
         return False, [0,0,0,0,0]
     else:
-        # last link is more vertical than horizonatal, use vertical mode to grab
-        if phi > np.pi/4:
+        # last link is vertical or near vertical, change the orientation of the end effector
+        # otherwise keep end effector unrotated
+        if phi > np.pi > np.pi*0.85:
             if theta1 > 0:
                 theta5 = theta1 - block_ori
             else:

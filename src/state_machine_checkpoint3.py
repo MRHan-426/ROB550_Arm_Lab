@@ -10,6 +10,10 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Int32
 from apriltag_msgs.msg import *
 
+################################## Notice #############################################
+# This is preserved version which passed check point3 successfully, keep it safe in case the
+# real state_machine.py fuck up
+
 class StateMachine():
     """!
     @brief      This class describes a state machine.
@@ -407,69 +411,6 @@ class StateMachine():
                 print("Cannot reach pose1 !")
                 self.initialize_rxarm()
                 time.sleep(1)
-
-
-    # compute end effector pose [x,y,z,phi] given x,y,z and orientation of the block, for general picking situation 
-    def pose_compute(pos,block_ori):
-        x,y,z = pos.copy()
-        orientaion = block_ori.copy()
-        phi = np.pi/2
-        can_Pick = False
-
-        can_Pick,_ = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
-        if can_Pick:
-            print("Successfully compute IK pose")
-            return True,[x,y,z,phi]
-        else:
-            for i in range(2):
-                x = x * 0.99
-                y = y * 0.99
-                phi = phi - np.pi*(1/30)
-                can_Pick,_ = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
-                if can_Pick:
-                    print("Successfully compute IK pose")
-                    return True, [x,y,z,phi]
-            
-            correction_counter = 0
-            while not can_Pick:
-                phi = phi - np.pi*(1/90)
-                can_Pick,_ = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
-                correction_counter = correction_counter + 1
-                if can_Pick:
-                    print("Successfully compute IK pose")
-                    return True,[x,y,z,phi]
-                if correction_counter > 5:
-                    print("Failure! Can not even reach corrected Pose")
-                    return False,[0,0,0,0]
-
-    
-    # compute pose for those pre_positions or not important positions
-    # so there is no strict requirement for phi
-    def loose_pose_compute(pos):
-        x,y,z = pos
-        phi = np.pi/2
-        can_reach = False
-        
-        can_reach,_ = kinematics.IK_geometric([x,y,z,phi])
-        if can_reach:
-            return True,[x,y,z,phi]
-        else:
-            correction_counter = 0
-            while not can_reach:
-                x = x * 0.99
-                y = y * 0.99
-                z= z - 2
-                phi = phi - np.pi * (1/45)
-                correction_counter = correction_counter + 1
-                can_reach,_ = kinematics.IK_geometric([x,y,z,phi])
-                if can_reach:
-                    return True,[x,y,z,phi]
-                if correction_counter > 20:
-                    print("Failure! Can not reach loose Pose")
-                    return False,[0,0,0,0]
-
-               
-
 
 
 
