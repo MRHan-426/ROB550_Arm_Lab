@@ -6,9 +6,11 @@ import time
 import numpy as np
 import rclpy
 import kinematics
+
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Int32
 from apriltag_msgs.msg import *
+from block_detection import *
 
 class StateMachine():
     """!
@@ -114,6 +116,9 @@ class StateMachine():
 
         if self.next_state == "grab":
             self.grab()
+        
+        if self.next_state == "pick_n_sort":
+            self.pick_n_sort()
 
     """Functions run for each state"""
 
@@ -467,9 +472,42 @@ class StateMachine():
                 if correction_counter > 20:
                     print("Failure! Can not reach loose Pose")
                     return False,[0,0,0,0]
+    
+    # Event 1:Pick'n sort!
+    def pick_n_sort(self):
+        self.current_state = "pick_n_sort"
+        self.next_state = "idle"
+        # Detect blocks in the plane
+        self.camera.blocks = detectBlocksInDepthImage(self.camera.DepthFrameRaw, intrinsic_matrix=self.camera.intrinsic_matrix, extrinsic_matrix=self.camera.extrinsic_matrix)
+        while self.camera.blocks == None:
+            print("There is no blocks in the workspace!!")
+            time.sleep(1)
+        # Differentiate blocks by sizes and catgorize them
+        for block in self.camera.blocks:
+            block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation
+            print(block_center)
+            if block_center[2] < 40:
+                # Put small blocks in positive plane to negative plane
+                if block.side < 20:
+                    if block_center[0] > 0:
+                        self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
+                        self.grab_or_put_down_a_block(click_point=block_center, is_grab=False, ee_orientation=block_orientation)
+                elif block.side > 35:
+                    if block_center[0] < 0:
+                        self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
+                        self.grab_or_put_down_a_block(click_point=block_center, is_grab=False, ee_orientation=block_orientation)
 
-               
+    # Event 2:Pick'n stack!
+    def pick_n_stack(self):
+        pass
 
+    # Event 3:Line 'em up!
+    def line_em_up(self):
+        pass
+
+    # Event 4:Stack 'em high!
+    def stack_n_high(self):
+        pass
 
 
 

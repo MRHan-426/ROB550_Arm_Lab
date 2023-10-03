@@ -109,6 +109,8 @@ class Gui(QMainWindow):
         self.ui.btnUser7.clicked.connect(partial(nxt_if_arm_init, 'detect'))
         self.ui.btnUser8.setText('Grab')
         self.ui.btnUser8.clicked.connect(partial(nxt_if_arm_init, 'grab'))
+        self.ui.btnUser8.setText('Pick \' n sort!')
+        self.ui.btnUser8.clicked.connect(partial(nxt_if_arm_init, 'pick_n_sort'))
 
         # Sliders
         for sldr in self.joint_sliders:

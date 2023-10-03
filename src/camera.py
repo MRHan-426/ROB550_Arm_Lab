@@ -244,7 +244,6 @@ class Camera():
                 modified_image = drawblock(self.blocks, modified_image)
                 modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
                 self.GridFrame = modified_image
-
             else:
                 modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
                 self.GridFrame = modified_image
