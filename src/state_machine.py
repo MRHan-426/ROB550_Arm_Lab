@@ -414,8 +414,12 @@ class StateMachine():
                 time.sleep(1)
 
 
-    # compute end effector pose [x,y,z,phi] given x,y,z and orientation of the block, for general picking situation 
     def pose_compute(pos,block_ori):
+        """!
+        @brief      compute end effector pose [x,y,z,phi] given x,y,z 
+                    and orientation of the block, for general picking situation 
+        """
+        
         x,y,z = pos.copy()
         orientaion = block_ori.copy()
         phi = np.pi/2
@@ -448,9 +452,11 @@ class StateMachine():
                     return False,[0,0,0,0]
 
     
-    # compute pose for those pre_positions or not important positions
-    # so there is no strict requirement for phi
     def loose_pose_compute(pos):
+        """!
+        @brief      compute pose for those pre_positions or not important positions
+                    so there is no strict requirement for phi
+        """
         x,y,z = pos
         phi = np.pi/2
         can_reach = False
@@ -472,6 +478,43 @@ class StateMachine():
                 if correction_counter > 20:
                     print("Failure! Can not reach loose Pose")
                     return False,[0,0,0,0]
+
+
+    def auto_pick(self,target_pos,block_ori):
+        """!
+        @brief      automatically go to a position and pick the block there
+        """
+        
+        x = target_pos[0].copy()
+        y = target_pos[1].copy()
+        z = target_pos[2].copy()
+        orientation = block_ori.copy()
+        
+        # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
+        pos1,pos2,pos3 = target_pos.copy()
+        pick_offset = 20 # compensation for block height
+        pick_height = 80 # place gripper above block
+        pos2[2] = pos2[2] - pick_offset
+        pos1[2] = pos1[2] + pick_height
+        pos3[2] = pos3[2] + pick_height
+
+        reachable1, joint_angles1 = self.loose_pose_compute(pos1)
+        reachable2, joint_angles2 = self.pose_compute(pos2,orientation)
+
+        if reachable1 and reachable2:
+            self.rxarm.set_positions(joint_angles1)
+            self.rxarm.gripper.release()
+            time.sleep(2)
+            self.rxarm.set_positions(joint_angles2)
+            time.sleep(2)
+            self.rxarm.gripper.grasp()
+            time.sleep(2)
+            self.rxarm.set_positions(joint_angles1)
+            time.sleep(1)
+            print("Successfully pick the block!")
+        else:
+            print("Unreachable Position!")
+
     
     # Event 1:Pick'n sort!
     def pick_n_sort(self):

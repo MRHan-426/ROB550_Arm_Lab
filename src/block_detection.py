@@ -206,7 +206,12 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
                     # side = 20
                     # cv2.putText(output_img, "small block", (cx + 5, cy + 5), font, 0.4, (0,255,0), thickness=1)
 
-                a_block = block([cy,cx] , depth_data[cy, cx], diagonal_length / np.sqrt(2), orientation)
+                if diagonal_length > 40:
+                    side = 40
+                else:
+                    side = 20
+
+                a_block = block([cy,cx] , depth_data[cy, cx], side, orientation)
                 blocks.append(a_block)
 
                 # cv2.circle(depth_data2, (cx,cy), 2, (0,255,0), -1)
