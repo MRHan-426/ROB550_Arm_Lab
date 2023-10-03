@@ -521,7 +521,7 @@ class StateMachine():
     def safe_pos(self):
         self.status_message = "State: Returning to safe position"
         self.current_state = "safe_pos"
-        self.rxarm.set_positions([0,0,-np.pi/2,0,0])
+        self.rxarm.set_positions([-np.pi,0,0,0,0])
         time.sleep(1)
         self.next_state = "idle"
 
@@ -535,20 +535,31 @@ class StateMachine():
             print("There is no blocks in the workspace!!")
             time.sleep(1)
         # Differentiate blocks by sizes and catgorize them
+        small_x , big_x = -150,150
         for block in self.camera.blocks:
-            block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation
-            print(block_center)
-            if block_center[2] < 40:
+            block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+            if block_center[2] < 40 and block_center[2] > 10: 
+                # print(block_center)
                 # Move small blocks in right plane to left plane
                 if block.side < 20:
-                    self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
-                    self.grab_or_put_down_a_block(click_point=[-150,-75,5], is_grab=False, ee_orientation=block_orientation)
+                    if block.center[0] < 0 or block.center[1] < 0:
+                        print("===========")
+                        print(block_center)
+                        print("===========")
+                        self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
+                        self.grab_or_put_down_a_block(click_point=[small_x,-100,5], is_grab=False, ee_orientation=block_orientation)
+                        small_x -= 50
                 # Move big blocks in left plane to right plane
                 elif block.side > 35:
-                    self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
-                    self.grab_or_put_down_a_block(click_point=[150,-75,5], is_grab=False, ee_orientation=block_orientation)
-            self.rxarm.set_positions([0,0,-np.pi/2,0,0])
-            time.sleep(1)
+                    if block.center[0] > 0 or block.center[1] < 0:
+                        print("+++++++++")
+                        print(block_center)
+                        print("+++++++++")
+                        self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
+                        self.grab_or_put_down_a_block(click_point=[big_x,-100,5], is_grab=False, ee_orientation=block_orientation)
+                        big_x += 50
+            self.initialize_rxarm()
+            time.sleep(2)
         print("Pick 'n sort finished")    
 
     # Event 2:Pick'n stack!
