@@ -568,6 +568,7 @@ class StateMachine():
                         self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
                         self.grab_or_put_down_a_block(click_point=block_center, is_grab=False, ee_orientation=block_orientation)
 
+
     # Event 2:Pick'n stack!
     def pick_n_stack(self):
         pass
