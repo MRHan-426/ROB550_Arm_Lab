@@ -538,23 +538,24 @@ class StateMachine():
         small_x , big_x = -150,150
         for block in self.camera.blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
-            if block_center[2] < 40 and block_center[2] > 10: 
+            print(block_center,block.side)
+            if block_center[2] < 50: 
                 # print(block_center)
                 # Move small blocks in right plane to left plane
-                if block.side < 20:
-                    if block.center[0] < 0 or block.center[1] < 0:
-                        print("===========")
+                if block.side <= 25:
+                    if block_center[0] >= 0 or block_center[1] >= 0:
+                        print("=========== Small")
                         print(block_center)
                         print("===========")
                         self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
                         self.grab_or_put_down_a_block(click_point=[small_x,-100,5], is_grab=False, ee_orientation=block_orientation)
                         small_x -= 50
                 # Move big blocks in left plane to right plane
-                elif block.side > 35:
-                    if block.center[0] > 0 or block.center[1] < 0:
-                        print("+++++++++")
+                elif block.side >= 35:
+                    if block_center[0] <= 0 or block_center[1] >= 0:
+                        print("+++++++++++ Big")
                         print(block_center)
-                        print("+++++++++")
+                        print("+++++++++++")
                         self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
                         self.grab_or_put_down_a_block(click_point=[big_x,-100,5], is_grab=False, ee_orientation=block_orientation)
                         big_x += 50
