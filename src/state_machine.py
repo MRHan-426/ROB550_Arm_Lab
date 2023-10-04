@@ -117,9 +117,6 @@ class StateMachine():
         if self.next_state == "grab":
             self.grab()
         
-        if self.next_state == "safe_pos":
-            self.safe_pos()
-
         if self.next_state == "pick_n_sort":
             self.pick_n_sort()
 
@@ -487,10 +484,6 @@ class StateMachine():
         """!
         @brief      automatically go to a position and pick the block there
         """
-        
-        x = target_pos[0].copy()
-        y = target_pos[1].copy()
-        z = target_pos[2].copy()
         orientation = block_ori.copy()
         
         # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
@@ -521,7 +514,7 @@ class StateMachine():
     def safe_pos(self):
         self.status_message = "State: Returning to safe position"
         self.current_state = "safe_pos"
-        self.rxarm.set_positions([-np.pi,0,0,0,0])
+        self.rxarm.set_positions([0,0,-np.pi/2,0,0])
         time.sleep(1)
         self.next_state = "idle"
 
