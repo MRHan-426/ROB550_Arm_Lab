@@ -560,8 +560,31 @@ class StateMachine():
         if reachable1 and reachable2:
             self.rxarm.set_positions(joint_angles1)
             time.sleep(2)
-            self.rxarm.set_positions(joint_angles2)
-            time.sleep(2)
+ 
+            displacement = np.array(joint_angles2) - np.array(joint_angles1)
+            displacement_unit =  displacement
+            temp_joint = np.array(joint_angles1)
+            current_effort = self.rxarm.get_efforts()
+                 
+            # self.rxarm.set_positions(joint_angles2)
+            # time.sleep(2)
+           
+            # Use dichotomy to place the block accurately
+            for i in range(10):
+                displacement_unit = displacement_unit / 2
+                temp_joint = temp_joint + displacement_unit
+                self.rxarm.set_positions(temp_joint.tolist())
+                time.sleep(1)
+
+                effort = self.rxarm.get_efforts()
+                effort_difference = (effort - current_effort)[1:3]
+                effort_diff_norm = np.linalg.nom(effort_difference)
+                print("effort difference is: ", effort_diff_norm)
+                
+                if effort_diff_norm > 50:
+                    break
+                
+
             self.rxarm.gripper.release()
             time.sleep(0.5)
             self.rxarm.set_positions(joint_angles1)
