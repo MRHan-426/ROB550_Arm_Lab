@@ -511,12 +511,45 @@ class StateMachine():
         else:
             print("Unreachable Position!")
 
+
+    def auto_place(self,target_pos,target_orientation):
+        """!
+        @brief      automatically go to a position and place the block there
+        """
+        orientation = target_orientation.copy()
+
+        # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
+        pos1,pos2,pos3 = target_pos.copy()
+        place_offset = 20 # compensation for block height
+        place_height = 80 # place gripper above block
+        pos2[2] = pos2[2] - place_offset
+        pos1[2] = pos1[2] + place_height
+        pos3[2] = pos3[2] + place_height
+
+        reachable1, joint_angles1 = self.loose_pose_compute(pos1)
+        reachable2, joint_angles2 = self.pose_compute(pos2,orientation)
+
+        if reachable1 and reachable2:
+            self.rxarm.set_positions(joint_angles1)
+            time.sleep(2)
+            self.rxarm.set_positions(joint_angles2)
+            time.sleep(2)
+            self.rxarm.gripper.realease()
+            time.sleep(2)
+            self.rxarm.set_positions(joint_angles1)
+            time.sleep(1)
+            print("Successfully pick the block!")
+        else:
+            print("Unreachable Position!")
+
+
     def safe_pos(self):
         self.status_message = "State: Returning to safe position"
         self.current_state = "safe_pos"
         self.rxarm.set_positions([0,0,-np.pi/2,0,0])
         time.sleep(1)
         self.next_state = "idle"
+
 
     # Event 1:Pick'n sort!
     def pick_n_sort(self):
@@ -540,8 +573,10 @@ class StateMachine():
                         print("=========== Small")
                         print(block_center)
                         print("===========")
-                        self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
-                        self.grab_or_put_down_a_block(click_point=[small_x,-100,5], is_grab=False, ee_orientation=block_orientation)
+                        # self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
+                        # self.grab_or_put_down_a_block(click_point=[small_x,-100,5], is_grab=False, ee_orientation=block_orientation)
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                        self.auto_place(target_pos=[small_x,-100,5],target_orientation = 0)
                         small_x -= 50
                 # Move big blocks in left plane to right plane
                 elif block.side >= 35:
@@ -549,8 +584,10 @@ class StateMachine():
                         print("+++++++++++ Big")
                         print(block_center)
                         print("+++++++++++")
-                        self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
-                        self.grab_or_put_down_a_block(click_point=[big_x,-100,5], is_grab=False, ee_orientation=block_orientation)
+                        # self.grab_or_put_down_a_block(click_point=block_center, is_grab=True, ee_orientation=block_orientation)
+                        # self.grab_or_put_down_a_block(click_point=[big_x,-100,5], is_grab=False, ee_orientation=block_orientation)
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                        self.auto_place(target_pos=[big_x,-100,10],target_orientation = 0)
                         big_x += 50
             self.initialize_rxarm()
             time.sleep(2)
