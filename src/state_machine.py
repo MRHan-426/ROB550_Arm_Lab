@@ -120,6 +120,7 @@ class StateMachine():
         if self.next_state == "pick_n_sort":
             self.pick_n_sort()
 
+
     """Functions run for each state"""
 
     def manual(self):
@@ -414,14 +415,16 @@ class StateMachine():
                 time.sleep(1)
 
 
-    def pose_compute(pos,block_ori):
+    def pose_compute(self,pos,block_ori):
         """!
         @brief      compute end effector pose [x,y,z,phi] given x,y,z 
                     and orientation of the block, for general picking situation 
         """
-        
-        x,y,z = pos.copy()
-        orientaion = block_ori.copy()
+        pos2 = pos[:]
+        x = pos2[0]
+        y = pos2[1]
+        z = pos2[2]
+        orientaion = block_ori
         phi = np.pi/2
         can_Pick = False
 
@@ -452,12 +455,15 @@ class StateMachine():
                     return False,[0,0,0,0]
 
     
-    def loose_pose_compute(pos):
+    def loose_pose_compute(self,pos):
         """!
         @brief      compute pose for those pre_positions or not important positions
                     so there is no strict requirement for phi
         """
-        x,y,z = pos
+        pos2 = pos[:]
+        x = pos2[0]
+        y = pos2[1]
+        z = pos2[2]
         phi = np.pi/2
         can_reach = False
         
@@ -484,61 +490,83 @@ class StateMachine():
         """!
         @brief      automatically go to a position and pick the block there
         """
-        orientation = block_ori.copy()
+        orientation = block_ori
         
         # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
-        pos1,pos2,pos3 = target_pos.copy()
-        pick_offset = 20 # compensation for block height
+        pos1 = list(target_pos[:])
+        pos2 = list(target_pos[:])
+        pos3 = list(target_pos[:])
+        print("pos1 shape is: ",len(pos1))
+        pick_offset = 0 # compensation for block height
         pick_height = 80 # place gripper above block
         pos2[2] = pos2[2] - pick_offset
         pos1[2] = pos1[2] + pick_height
         pos3[2] = pos3[2] + pick_height
 
-        reachable1, joint_angles1 = self.loose_pose_compute(pos1)
-        reachable2, joint_angles2 = self.pose_compute(pos2,orientation)
+        reachable1, pose1 = self.loose_pose_compute(tuple(pos1))
+        reachable2, pose2 = self.pose_compute(pos = tuple(pos2),block_ori=orientation)
+        _,joint_angles1 = kinematics.IK_geometric(pose1,block_ori=orientation)
+        _,joint_angles2 = kinematics.IK_geometric(pose2,block_ori=orientation)
+
 
         if reachable1 and reachable2:
             self.rxarm.set_positions(joint_angles1)
-            self.rxarm.gripper.release()
+            print(joint_angles1)
+            print("reach pos1")
             time.sleep(2)
+            self.rxarm.gripper.release()
+            time.sleep(0.5)
             self.rxarm.set_positions(joint_angles2)
+            print(joint_angles2)
+            print("reach pos2")
             time.sleep(2)
             self.rxarm.gripper.grasp()
+            print(joint_angles1)
             time.sleep(2)
             self.rxarm.set_positions(joint_angles1)
-            time.sleep(1)
+            print("reach pos3")
+            time.sleep(2)
             print("Successfully pick the block!")
         else:
             print("Unreachable Position!")
+
+        # self.rxarm.set_positions([0,0,np.pi/10,0,0])
+        # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
+
+
 
 
     def auto_place(self,target_pos,target_orientation):
         """!
         @brief      automatically go to a position and place the block there
         """
-        orientation = target_orientation.copy()
+        orientation = target_orientation
 
         # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
-        pos1,pos2,pos3 = target_pos.copy()
-        place_offset = 20 # compensation for block height
+        pos1 = list(target_pos[:])
+        pos2 = list(target_pos[:])
+        pos3 = list(target_pos[:])
+        place_offset = 0 # compensation for block height
         place_height = 80 # place gripper above block
         pos2[2] = pos2[2] - place_offset
         pos1[2] = pos1[2] + place_height
         pos3[2] = pos3[2] + place_height
 
-        reachable1, joint_angles1 = self.loose_pose_compute(pos1)
-        reachable2, joint_angles2 = self.pose_compute(pos2,orientation)
+        reachable1, pose1 = self.loose_pose_compute(tuple(pos1))
+        reachable2, pose2 = self.pose_compute(pos = tuple(pos2),block_ori=orientation)
+        _,joint_angles1 = kinematics.IK_geometric(pose1,block_ori=orientation)
+        _,joint_angles2 = kinematics.IK_geometric(pose2,block_ori=orientation)
 
         if reachable1 and reachable2:
             self.rxarm.set_positions(joint_angles1)
             time.sleep(2)
             self.rxarm.set_positions(joint_angles2)
             time.sleep(2)
-            self.rxarm.gripper.realease()
-            time.sleep(2)
+            self.rxarm.gripper.release()
+            time.sleep(0.5)
             self.rxarm.set_positions(joint_angles1)
-            time.sleep(1)
-            print("Successfully pick the block!")
+            time.sleep(2)
+            print("Successfully place the block!")
         else:
             print("Unreachable Position!")
 

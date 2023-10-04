@@ -100,10 +100,13 @@ def detectBlocksColorInRGBImage(img, position: tuple) -> str:
                 cv2.inRange(img_hsv, np.array([0, 43, 46]), np.array([20, 255, 255])) + 
                 cv2.inRange(img_hsv, np.array([156, 43, 46]), np.array([190, 255, 255]))
                     ),
+            "orange":cv2.inRange(img_hsv, np.array([11,43,46]), np.array([25, 255, 255])),
+            "yellow":cv2.inRange(img_hsv, np.array([26,43,46]), np.array([34, 255, 255])),
             # "orange": cv2.medianBlur(cv2.inRange(img_hsv, np.array([11, 43, 46]), np.array([25, 255, 255])), 7),
             # "yellow": cv2.medianBlur(cv2.inRange(img_hsv, np.array([26, 43, 46]), np.array([34, 255, 255])), 7),
             "green": cv2.inRange(img_hsv, np.array([60, 43, 46]), np.array([95, 255, 255])),
             "blue": cv2.inRange(img_hsv, np.array([100, 43, 46]), np.array([105, 255, 255])),
+            "purple":cv2.inRange(img_hsv, np.array([106,43,46]), np.array([150, 255, 255])),
             # "purple": cv2.medianBlur(cv2.inRange(img_hsv, np.array([106, 43, 46]), np.array([150, 255, 255])), 7),
             # "pink": cv2.medianBlur(cv2.inRange(img_hsv, np.array([165, 43, 46]), np.array([255, 255, 255])), 7)
         }
@@ -173,7 +176,7 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
     lower = 10
     upper = 40
     mask = np.zeros_like(depth_data, dtype=np.uint8)
-    cv2.rectangle(mask, (220,80),(1080,720), 255, cv2.FILLED)
+    cv2.rectangle(mask, (40,40),(1280,720), 255, cv2.FILLED)
     # cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
     thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -181,14 +184,14 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
     blocks = []
 
     for contour in contours:
-        epsilon = 0.06 * cv2.arcLength(contour, True)
+        epsilon = 0.08 * cv2.arcLength(contour, True)
         approx = cv2.approxPolyDP(contour, epsilon, True)
         # print("approx.shape is: ", approx.shape)
         if len(approx) == 4:
             point1 = [approx[0,0,0],approx[0,0,1]]
             point2 = [approx[2,0,0],approx[2,0,1]]
             diagonal_length = np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
-            if diagonal_length > 25 and diagonal_length < 60:             
+            if diagonal_length > 20 and diagonal_length < 60:             
                 orientation = cv2.minAreaRect(contour)[2]
                 M = cv2.moments(contour)
                 cy = 1
@@ -260,7 +263,7 @@ def drawblock(blocks:list[block], output_img:np.array) -> np.array:
             int(center[1] - half_side * cos_angle - half_side * sin_angle))
         square_coordinates = np.array([corner1, corner2, corner3, corner4], dtype=np.int32)
         # RGB
-        cv2.polylines(output_img, [square_coordinates], isClosed=True, color=(0, 0, 255), thickness=2)
+        cv2.polylines(output_img, [square_coordinates], isClosed=True, color=(255, 255, 0), thickness=2)
         cv2.circle(output_img, (center[0], center[1]), 2, (0,255,0), -1)
 
         cv2.putText(output_img, str(int(np.rad2deg(orientation))), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
