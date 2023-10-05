@@ -285,6 +285,20 @@ class StateMachine():
         self.detect_pub.publish(msg)
 
 
+    def calMoveTime(self, target_joint):
+        """!
+        @brief    calculate the moving time and accelerate time of motion 
+        """
+        displacement = target_joint - self.rxarm.get_positions()
+        angular_v = np.ones(displacement.shape) * (np.pi / 4)
+        angular_t = np.abs(displacement) / angular_v
+        move_time = np.max(angular_t)
+        if move_time < 0.4:
+            move_time = 0.4
+        ac_time = move_time / 3
+        return move_time, ac_time
+
+
     def grab(self):
         """!
         @brief     use IK to grab a block at given position
@@ -510,29 +524,41 @@ class StateMachine():
 
 
         if reachable1 and reachable2:
-            self.rxarm.set_positions(joint_angles1)
-            print(joint_angles1)
-            print("reach pos1")
-            time.sleep(2)
+
+            # go to the pre-picking point
+            move_time,ac_time = self.calMoveTime(joint_angles1)
+            self.rxarm.set_joint_positions(joint_angles1,
+                                           moving_time = move_time, 
+                                           accel_time = ac_time,
+                                           blocking = True)
+            print("Auto Pick: Reach Pos1")
+            
+            # open the gripper
             self.rxarm.gripper.release()
             time.sleep(0.5)
-            self.rxarm.set_positions(joint_angles2)
-            print(joint_angles2)
-            print("reach pos2")
-            time.sleep(2)
+
+            # go the the picking point
+            move_time,ac_time = self.calMoveTime(joint_angles2)
+            self.rxarm.set_joint_positions(joint_angles2,
+                                           moving_time = move_time, 
+                                           accel_time = ac_time,
+                                           blocking = True)
+            print("Auto Pick: Reach Pos2")
+            
+            # close the gripper and pick the block
             self.rxarm.gripper.grasp()
-            print(joint_angles1)
             time.sleep(2)
-            self.rxarm.set_positions(joint_angles1)
-            print("reach pos3")
-            time.sleep(2)
-            print("Successfully pick the block!")
+
+
+            move_time,ac_time = self.calMoveTime(joint_angles1)
+            self.rxarm.set_joint_positions(joint_angles1,
+                                           moving_time = move_time, 
+                                           accel_time = ac_time,
+                                           blocking = True)
+            print("Auto Pick: Reach Pos3")
+            print("Auto Pick Complete: Successfully pick the block!")
         else:
             print("Unreachable Position!")
-
-        # self.rxarm.set_positions([0,0,np.pi/10,0,0])
-        # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1")
-
 
 
 
@@ -564,7 +590,7 @@ class StateMachine():
             displacement = np.array(joint_angles2) - np.array(joint_angles1)
             displacement_unit =  displacement
             temp_joint = np.array(joint_angles1)
-            current_effort = self.rxarm.get_efforts()
+            last_effort = self.rxarm.get_efforts()
                  
             # self.rxarm.set_positions(joint_angles2)
             # time.sleep(2)
@@ -577,7 +603,8 @@ class StateMachine():
                 time.sleep(1)
 
                 effort = self.rxarm.get_efforts()
-                effort_difference = (effort - current_effort)[1:3]
+                effort_difference = (effort - last_effort)[1:3]
+                last_effort = effort
                 effort_diff_norm = np.linalg.nom(effort_difference)
                 print("effort difference is: ", effort_diff_norm)
                 
