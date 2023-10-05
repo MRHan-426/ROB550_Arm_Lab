@@ -538,11 +538,12 @@ class StateMachine():
         orientation = block_ori
         
         # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
+        target_pos = kinematics.Target_Pos_Compensation(list(target_pos))
         pos1 = list(target_pos[:])
         pos2 = list(target_pos[:])
         pos3 = list(target_pos[:])
         print("pos1 shape is: ",len(pos1))
-        pick_offset = 0 # compensation for block height
+        pick_offset = 20 # compensation for block height
         pick_height = 80 # place gripper above block
         pos2[2] = pos2[2] - pick_offset
         pos1[2] = pos1[2] + pick_height
@@ -597,7 +598,7 @@ class StateMachine():
                 effort_diff_norm = np.linalg.norm(effort_difference)
                 print("Auto Place: Effort difference is: ", effort_diff_norm)
                 
-                if effort_diff_norm > 800:
+                if i>2 and effort_diff_norm > 100:
                     print("Auto Place: Reach Pos2")
                     break
             
@@ -623,14 +624,15 @@ class StateMachine():
         @brief      automatically go to a position and place the block there
         """
         orientation = target_orientation
+        target_pos = kinematics.Target_Pos_Compensation(list(target_pos))
 
         # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
         pos1 = list(target_pos[:])
         pos2 = list(target_pos[:])
         pos3 = list(target_pos[:])
-        place_offset = 0 # compensation for block height
+        place_offset = 20 # compensation for block height
         place_height = 80 # place gripper above block
-        pos2[2] = pos2[2] - place_offset
+        pos2[2] = pos2[2] + place_offset
         pos1[2] = pos1[2] + place_height
         pos3[2] = pos3[2] + place_height
 
@@ -677,7 +679,7 @@ class StateMachine():
                 effort_diff_norm = np.linalg.norm(effort_difference)
                 print("Auto Place: Effort difference is: ", effort_diff_norm)
                 
-                if effort_diff_norm > 800:
+                if i>2 and effort_diff_norm > 100:
                     print("Auto Place: Reach Pos2")
                     break
 
