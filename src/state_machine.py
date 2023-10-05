@@ -839,22 +839,6 @@ class StateMachine():
             time.sleep(2)
         print("Pick'n stack finished")
         pass
-    
-    def color_helper(color):
-        if color == 'red':
-            return 1
-        elif color == 'orange':
-            return 2
-        elif color == 'yellow':
-            return 3
-        elif color == 'green':
-            return 4
-        elif color == 'blue':
-            return 5
-        elif color == 'purple':
-            return 6
-        else:
-            return 0
 
     # Event 3:Line 'em up!
     def line_em_up(self):
@@ -867,13 +851,13 @@ class StateMachine():
             time.sleep(1)
         
         # Define a custom order for colors
-        color_order = {"red": 0, "orange": 1, "yellow": 2, "green": 3, "blue": 4, "purple": 5}
+        color_order = {"red": 0, "orange": 1, "yellow": 2, "green": 3, "blue": 4, "purple": 5, None:6}
 
         # Sort the list of blocks by color
         blocks = self.camera.blocks
         sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
-        
-        for block in self.camera.blocks:
+
+        for block in sorted_blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
             # print("00000000000000000000000000000")
             # print(block_center,block.side)
@@ -915,7 +899,7 @@ class StateMachine():
             time.sleep(1)
         
         # Define a custom order for colors
-        color_order = {"red": 0, "orange": 1, "yellow": 2, "green": 3, "blue": 4, "purple": 5}
+        color_order = {"red": 0, "orange": 1, "yellow": 2, "green": 3, "blue": 4, "purple": 5, None:6}
 
         # Sort the list of blocks by color
         blocks = self.camera.blocks
