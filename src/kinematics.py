@@ -193,7 +193,7 @@ def Joint_Pos_Compensation(joint_angles):
     return joint_angles_corrected
 
 
-def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None):
+def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
     """!
     @brief      Get all possible joint configs that produce the pose.
 
@@ -245,23 +245,27 @@ def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None):
     theta4 = phi - theta2 - theta3
 
     # compute theta5 based on different situations
-    if block_ori is None:
-        theta5 = 0
-    elif block_ori < 0:
-        print("[IK ERROR Incorrect Block Orientation]")
-        return False, [0,0,0,0,0]
+    # isVertical_Pick means rotate the last joint by 90 deg for some situations
+    if isVertical_Pick is True:
+        theta5 = np.pi/2
     else:
-        # last link is vertical or near vertical, change the orientation of the end effector
-        # otherwise keep end effector unrotated
-        if phi > np.pi*0.4:
-            if theta1 > 0:
-                theta5 = theta1 - block_ori
-            else:
-                theta1_ref = -theta1
-                theta5 = np.pi/2 - theta1_ref - block_ori
-        # last link is more horizontal than vertical, use horizontal mode to grab
-        else:
+        if block_ori is None:
             theta5 = 0
+        elif block_ori < 0:
+            print("[IK ERROR Incorrect Block Orientation]")
+            return False, [0,0,0,0,0]
+        else:
+            # last link is vertical or near vertical, change the orientation of the end effector
+            # otherwise keep end effector unrotated
+            if phi > np.pi*0.4:
+                if theta1 > 0:
+                    theta5 = theta1 - block_ori
+                else:
+                    theta1_ref = -theta1
+                    theta5 = np.pi/2 - theta1_ref - block_ori
+            # last link is more horizontal than vertical, use horizontal mode to grab
+            else:
+                theta5 = 0
 
 
     # Moving Range Restriction
