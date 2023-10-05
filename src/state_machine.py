@@ -119,6 +119,18 @@ class StateMachine():
         
         if self.next_state == "pick_n_sort":
             self.pick_n_sort()
+        
+        if self.next_state == "pick_n_stack":
+            self.pick_n_stack()
+
+        if self.next_state == "line_em_up":
+            self.line_em_up()
+
+        if self.next_state == "stack_em_high":
+            self.stack_em_high()
+        
+        if self.next_state == "to_the_sky":
+            self.to_the_sky()
 
 
     """Functions run for each state"""
@@ -515,15 +527,10 @@ class StateMachine():
             return False, [0,0,0,0,0]
 
 
-
-
     def auto_pick(self,target_pos,block_ori):
         """!
         @brief      automatically go to a position and pick the block there
         """
-       
-        
-
         orientation = block_ori
         
         # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
@@ -719,16 +726,74 @@ class StateMachine():
 
     # Event 2:Pick'n stack!
     def pick_n_stack(self):
+        self.current_state = "pick_n_stack"
+        self.next_state = "idle"
+        # Detect blocks in the plane
+        self.camera.blocks = detectBlocksInDepthImage(self.camera.DepthFrameRaw, intrinsic_matrix=self.camera.intrinsic_matrix, extrinsic_matrix=self.camera.extrinsic_matrix)
+        while self.camera.blocks == None:
+            print("There is no blocks in the workspace!!")
+            time.sleep(1)
+
+        # Differentiate blocks by sizes
+        small_z , big_z = 0,0
+        for block in self.camera.blocks:
+            block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+            # print("00000000000000000000000000000")
+            # print(block_center,block.side)
+            # print("00000000000000000000000000000")
+
+            # Filter out possible mis-ditection
+            if block_center[2] < 50: 
+                # print(block_center)
+                if block_center [1] >= 0: 
+                    # Stack small blocks on the Apriltag in the left negative plane
+                    if block.side <= 25:
+                        print("=========== Small")
+                        print(block_center)
+                        print("=================")
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                        self.auto_place(target_pos=[-250,-25,small_z],target_orientation = 0)
+                        small_z += 25
+                    # Stack big blocks on the Apriltag in the right negative plane
+                    elif block.side >= 35:
+                        print("+++++++++++ Big")
+                        print(block_center)
+                        print("+++++++++++++++")
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                        self.auto_place(target_pos=[250,25,big_z],target_orientation = 0)
+                        big_z += 40
+            self.initialize_rxarm()
+            time.sleep(2)
+        print("Pick'n stack finished")
         pass
 
     # Event 3:Line 'em up!
     def line_em_up(self):
+        self.current_state = "line_em_up"
+        self.next_state = "idle"
+        # Detect blocks in the plane
+        self.camera.blocks = detectBlocksInDepthImage(self.camera.DepthFrameRaw, intrinsic_matrix=self.camera.intrinsic_matrix, extrinsic_matrix=self.camera.extrinsic_matrix)
+        while self.camera.blocks == None:
+            print("There is no blocks in the workspace!!")
+            time.sleep(1)
+        
+        
+        print("Line 'em up finished")
         pass
 
     # Event 4:Stack 'em high!
-    def stack_n_high(self):
+    def stack_em_high(self):
+        self.current_state = "stack_em_high"
+        self.next_state = "idle"
+        print("Stack 'em high finished")
         pass
-
+    
+    # Event 5:To the sky!
+    def to_the_sky(self):
+        self.current_state = "to_the_sky"
+        self.next_state = "idle"
+        print("To the sky finished")
+        pass
 
 
 class StateMachineThread(QThread):

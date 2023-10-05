@@ -81,10 +81,14 @@ class Gui(QMainWindow):
         nxt_if_arm_init = lambda next_state: self.sm.set_next_state(next_state)
         self.ui.btn_estop.clicked.connect(self.estop)
         self.ui.btn_init_arm.clicked.connect(self.initRxarm)
-        self.ui.btn_torq_off.clicked.connect(
-            lambda: self.rxarm.disable_torque())
+        self.ui.btn_torq_off.clicked.connect(lambda: self.rxarm.disable_torque())
         self.ui.btn_torq_on.clicked.connect(lambda: self.rxarm.enable_torque())
         self.ui.btn_sleep_arm.clicked.connect(lambda: self.rxarm.sleep())
+        self.ui.btn_task1.clicked.connect(partial(nxt_if_arm_init, 'pick_n_sort'))
+        self.ui.btn_task2.clicked.connect(partial(nxt_if_arm_init, 'pick_n_stack'))
+        self.ui.btn_task3.clicked.connect(partial(nxt_if_arm_init, 'line_em_up'))
+        self.ui.btn_task4.clicked.connect(partial(nxt_if_arm_init, 'stack_em_high'))
+        self.ui.btn_task5.clicked.connect(partial(nxt_if_arm_init, 'to_the_sky'))
 
         #User Buttons
         self.ui.btnUser1.setText("Calibrate")
@@ -109,8 +113,6 @@ class Gui(QMainWindow):
         self.ui.btnUser7.clicked.connect(partial(nxt_if_arm_init, 'detect'))
         self.ui.btnUser8.setText('Grab')
         self.ui.btnUser8.clicked.connect(partial(nxt_if_arm_init, 'grab'))
-        self.ui.btnUser8.setText('Pick \' n sort!')
-        self.ui.btnUser8.clicked.connect(partial(nxt_if_arm_init, 'pick_n_sort'))
 
         # Sliders
         for sldr in self.joint_sliders:
