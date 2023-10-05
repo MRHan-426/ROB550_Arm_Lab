@@ -887,6 +887,7 @@ class StateMachine():
         blocks = self.camera.blocks
         sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
 
+        small_x , big_x = -400, 150
         for block in sorted_blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
             # print("00000000000000000000000000000")
@@ -904,14 +905,16 @@ class StateMachine():
                         print(block_center,block.color)
                         print("=================")
                         self.auto_pick(target_pos=block_center,block_ori = block_orientation)
-                        self.auto_place(target_pos=[small_x[self.color_helper(block.color)],-125,5],target_orientation = 0)
+                        self.auto_place(target_pos=[small_x,-125,5],target_orientation = 0)
+                        small_x += 50
                     # Line big blocks in color order in the right negative plane
                     elif block.side >= 35:
                         print("+++++++++++ Big")
                         print(block_center,block.color)
                         print("+++++++++++++++")
                         self.auto_pick(target_pos=block_center,block_ori = block_orientation)
-                        self.auto_place(target_pos=[big_x[self.color_helper(block.color)],-125,5],target_orientation = 0)
+                        self.auto_place(target_pos=[big_x,-125,5],target_orientation = 0)
+                        big_x += 50
             self.initialize_rxarm()
             time.sleep(2)
 
@@ -935,6 +938,7 @@ class StateMachine():
         blocks = self.camera.blocks
         sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
 
+        small_z, big_z = 0
         for block in sorted_blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
             # print("00000000000000000000000000000")
@@ -951,14 +955,16 @@ class StateMachine():
                         print(block_center,block.color)
                         print("=================")
                         self.auto_pick(target_pos=block_center,block_ori = block_orientation)
-                        self.auto_place(target_pos=[small_x[self.color_helper(block.color)],-125,5],target_orientation = 0)
+                        self.auto_place(target_pos=[250,-125,small_z],target_orientation = 0)
+                        small_z += 38
                     # Line big blocks in color order in the right negative plane
                     elif block.side >= 35:
                         print("+++++++++++ Big")
                         print(block_center,block.color)
                         print("+++++++++++++++")
                         self.auto_pick(target_pos=block_center,block_ori = block_orientation)
-                        self.auto_place(target_pos=[big_x[self.color_helper(block.color)],-125,5],target_orientation = 0)
+                        self.auto_place(target_pos=[250,-125,big_z],target_orientation = 0)
+                        big_z += 38
             self.initialize_rxarm()
             time.sleep(2)
         print("Stack 'em high finished")
