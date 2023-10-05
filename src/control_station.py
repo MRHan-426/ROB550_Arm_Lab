@@ -89,6 +89,9 @@ class Gui(QMainWindow):
         self.ui.btn_task3.clicked.connect(partial(nxt_if_arm_init, 'line_em_up'))
         self.ui.btn_task4.clicked.connect(partial(nxt_if_arm_init, 'stack_em_high'))
         self.ui.btn_task5.clicked.connect(partial(nxt_if_arm_init, 'to_the_sky'))
+        self.ui.motion_test.clicked.connect(partial(nxt_if_arm_init, 'motion_test'))
+        
+
 
         #User Buttons
         self.ui.btnUser1.setText("Calibrate")

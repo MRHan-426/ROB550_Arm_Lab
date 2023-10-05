@@ -189,7 +189,7 @@ def Joint_Pos_Compensation(joint_angles):
     joint_angles_corrected = joint_angles.copy()
     joint_angles_corrected[1] = joint_angles_corrected[1] - np.pi/180
     joint_angles_corrected[2] = joint_angles_corrected[2] - np.pi/180
-    joint_angles_corrected[3] = joint_angles_corrected[3] + 0
+    joint_angles_corrected[3] = joint_angles_corrected[3]
     return joint_angles_corrected
 
 
@@ -292,8 +292,7 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
     
     # print("Success! The joint angles are: ", np.rad2deg(theta1), ", ", np.rad2deg(theta2), ", ", np.rad2deg(theta3), ", ", np.rad2deg(theta4), ", ", np.rad2deg(theta5), ", ")
     print("Success! The joint angles(deg) are: ", theta1, ", ", theta2, ", ", theta3, ", ", theta4, ", ", theta5)
-    joint_angles = Joint_Pos_Compensation([theta1,theta2,theta3,theta4,theta5])
-    return True, joint_angles
+    return True, [theta1,theta2,theta3,theta4,theta5]
     pass
 
 
