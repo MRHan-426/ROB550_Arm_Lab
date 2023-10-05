@@ -716,7 +716,8 @@ class StateMachine():
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
             time.sleep(1)
-        # Differentiate blocks by sizes and catgorize them
+
+        # Initialize place positions - x coordinates
         small_x , big_x = -150,150
         for block in self.camera.blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
@@ -759,7 +760,7 @@ class StateMachine():
             print("There is no blocks in the workspace!!")
             time.sleep(1)
 
-        # Differentiate blocks by sizes
+        # Initialize place positions - z coordinates
         small_z , big_z = 0,0
         for block in self.camera.blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
@@ -791,6 +792,22 @@ class StateMachine():
             time.sleep(2)
         print("Pick'n stack finished")
         pass
+    
+    def color_helper(color):
+        if color == 'red':
+            return 1
+        elif color == 'orange':
+            return 2
+        elif color == 'yellow':
+            return 3
+        elif color == 'green':
+            return 4
+        elif color == 'blue':
+            return 5
+        elif color == 'purple':
+            return 6
+        else:
+            return 0
 
     # Event 3:Line 'em up!
     def line_em_up(self):
@@ -802,7 +819,37 @@ class StateMachine():
             print("There is no blocks in the workspace!!")
             time.sleep(1)
         
-        
+        # Initialize place positions - x coordinates
+        small_x = [-150,-400,-350,-300,-250,-200,-150]
+        big_x = [150,150,200,250,300,350,400]
+        for block in self.camera.blocks:
+            block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+            # print("00000000000000000000000000000")
+            # print(block_center,block.side)
+            # print("00000000000000000000000000000")
+
+            # Filter out possible mis-ditection
+            if block_center[2] < 50: 
+                # print(block_center)
+                # Assume all non-sorted blocks are in the positive plane:
+                if block_center [1] >= 0: 
+                    # Line small blocks in color order in the left negative plane
+                    if block.side <= 25:
+                        print("=========== Small")
+                        print(block_center,block.color)
+                        print("=================")
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                        self.auto_place(target_pos=[small_x[self.color_helper(block.color)],-125,5],target_orientation = 0)
+                    # Line big blocks in color order in the right negative plane
+                    elif block.side >= 35:
+                        print("+++++++++++ Big")
+                        print(block_center,block.color)
+                        print("+++++++++++++++")
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                        self.auto_place(target_pos=[big_x[self.color_helper(block.color)],-125,5],target_orientation = 0)
+            self.initialize_rxarm()
+            time.sleep(2)
+
         print("Line 'em up finished")
         pass
 
@@ -810,6 +857,45 @@ class StateMachine():
     def stack_em_high(self):
         self.current_state = "stack_em_high"
         self.next_state = "idle"
+        # Detect blocks in the plane
+        self.camera.blocks = detectBlocksInDepthImage(self.camera.DepthFrameRaw, intrinsic_matrix=self.camera.intrinsic_matrix, extrinsic_matrix=self.camera.extrinsic_matrix)
+        while self.camera.blocks == None:
+            print("There is no blocks in the workspace!!")
+            time.sleep(1)
+        
+        # Define a custom order for colors
+        color_order = {"red": 0, "orange": 1, "yellow": 2, "green": 3, "blue": 4, "purple": 5}
+
+        # Sort the list of blocks by color
+        blocks = self.camera.blocks
+        sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
+
+        for block in sorted_blocks:
+            block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+            # print("00000000000000000000000000000")
+            # print(block_center,block.side)
+            # print("00000000000000000000000000000")
+            # Filter out possible mis-ditection
+            if block_center[2] < 50: 
+                # print(block_center)
+                # Assume all non-sorted blocks are in the positive plane:
+                if block_center [1] >= 0: 
+                    # Line small blocks in color order in the left negative plane
+                    if block.side <= 25:
+                        print("=========== Small")
+                        print(block_center,block.color)
+                        print("=================")
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                        self.auto_place(target_pos=[small_x[self.color_helper(block.color)],-125,5],target_orientation = 0)
+                    # Line big blocks in color order in the right negative plane
+                    elif block.side >= 35:
+                        print("+++++++++++ Big")
+                        print(block_center,block.color)
+                        print("+++++++++++++++")
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                        self.auto_place(target_pos=[big_x[self.color_helper(block.color)],-125,5],target_orientation = 0)
+            self.initialize_rxarm()
+            time.sleep(2)
         print("Stack 'em high finished")
         pass
     
@@ -817,6 +903,20 @@ class StateMachine():
     def to_the_sky(self):
         self.current_state = "to_the_sky"
         self.next_state = "idle"
+        # Detect blocks in the plane
+        self.camera.blocks = detectBlocksInDepthImage(self.camera.DepthFrameRaw, intrinsic_matrix=self.camera.intrinsic_matrix, extrinsic_matrix=self.camera.extrinsic_matrix)
+        while self.camera.blocks == None:
+            print("There is no blocks in the workspace!!")
+            time.sleep(1)
+
+        big_z = 5
+        for block in self.camera.blocks:
+            block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+            self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+            self.auto_place(target_pos=[250,175,big_z],target_orientation = 0)
+            big_z += 38
+            self.initialize_rxarm()
+            time.sleep(2)
         print("To the sky finished")
         pass
 

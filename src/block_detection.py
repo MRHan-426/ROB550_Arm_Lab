@@ -23,6 +23,7 @@ class block:
         self.depth = depth
         self.side = side
         self.orientation = np.deg2rad(orientation)
+        self.color = None
 
         # half_length = self.side / 2.0
         # self.vertices = []
