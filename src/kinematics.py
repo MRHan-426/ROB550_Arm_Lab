@@ -189,11 +189,11 @@ def Joint_Pos_Compensation(joint_angles):
     joint_angles_corrected = joint_angles.copy()
     joint_angles_corrected[1] = joint_angles_corrected[1] + np.pi/90
     joint_angles_corrected[2] = joint_angles_corrected[2] + np.pi/90
-    joint_angles_corrected[3] = joint_angles_corrected[3] + np.pi/90
+    joint_angles_corrected[3] = joint_angles_corrected[3] + 0
     return joint_angles_corrected
 
 
-def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None,):
+def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None):
     """!
     @brief      Get all possible joint configs that produce the pose.
 
@@ -253,7 +253,7 @@ def IK_geometric(pose, dh_para=None, block_ori=None, m_mat=None, s_lst=None,):
     else:
         # last link is vertical or near vertical, change the orientation of the end effector
         # otherwise keep end effector unrotated
-        if phi > np.pi > np.pi*0.85:
+        if phi > np.pi*0.4:
             if theta1 > 0:
                 theta5 = theta1 - block_ori
             else:

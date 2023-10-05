@@ -442,32 +442,32 @@ class StateMachine():
         phi = np.pi/2
         can_Pick = False
 
-        can_Pick,_ = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
+        can_Pick,joint_angles = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
         if can_Pick:
             print("Successfully compute IK pose")
-            return True,[x,y,z,phi]
+            return True,joint_angles
         else:
             for i in range(2):
                 x = x * 0.99
                 y = y * 0.99
                 phi = phi - np.pi*(1/30)
-                can_Pick,_ = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
+                can_Pick,joint_angles = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
                 if can_Pick:
                     print("Successfully compute IK pose")
-                    return True, [x,y,z,phi]
+                    return True, joint_angles
             
             correction_counter = 0
             while not can_Pick:
                 phi = phi - np.pi*(1/90)
-                can_Pick,_ = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
+                can_Pick,joint_angles = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
                 correction_counter = correction_counter + 1
                 if can_Pick:
                     print("Successfully compute IK pose")
-                    return True,[x,y,z,phi]
+                    return True,joint_angles
                 if correction_counter > 5:
                     print("Failure! Can not even reach corrected Pose")
-                    return False,[0,0,0,0]
-
+                    return False,[0,0,0,0,0]
+    
     
     def loose_pose_compute(self,pos):
         """!
@@ -481,9 +481,9 @@ class StateMachine():
         phi = np.pi/2
         can_reach = False
         
-        can_reach,_ = kinematics.IK_geometric([x,y,z,phi])
+        can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi])
         if can_reach:
-            return True,[x,y,z,phi]
+            return True,joint_angles
         else:
             correction_counter = 0
             while not can_reach:
@@ -492,18 +492,38 @@ class StateMachine():
                 z= z - 2
                 phi = phi - np.pi * (1/45)
                 correction_counter = correction_counter + 1
-                can_reach,_ = kinematics.IK_geometric([x,y,z,phi])
+                can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi])
                 if can_reach:
-                    return True,[x,y,z,phi]
-                if correction_counter > 20:
+                    return True,joint_angles
+                if correction_counter > 15:
                     print("Failure! Can not reach loose Pose")
-                    return False,[0,0,0,0]
+                    return False,[0,0,0,0,0]
+                
+
+    def horizontal_pose_compute(self,pos,block_ori = 0):
+        phi = 0
+        can_reach = False
+        pos2 = pos[:]
+        x = pos2[0]
+        y = pos2[1]
+        z = pos2[2]
+
+        can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi])
+        if can_reach:
+            return True,joint_angles
+        else:
+            return False, [0,0,0,0,0]
+
+
 
 
     def auto_pick(self,target_pos,block_ori):
         """!
         @brief      automatically go to a position and pick the block there
         """
+       
+        
+
         orientation = block_ori
         
         # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
@@ -517,11 +537,8 @@ class StateMachine():
         pos1[2] = pos1[2] + pick_height
         pos3[2] = pos3[2] + pick_height
 
-        reachable1, pose1 = self.loose_pose_compute(tuple(pos1))
-        reachable2, pose2 = self.pose_compute(pos = tuple(pos2),block_ori=orientation)
-        _,joint_angles1 = kinematics.IK_geometric(pose1,block_ori=orientation)
-        _,joint_angles2 = kinematics.IK_geometric(pose2,block_ori=orientation)
-
+        reachable1, joint_angles1 = self.loose_pose_compute(tuple(pos1))
+        reachable2, joint_angles2 = self.pose_compute(pos = tuple(pos2),block_ori=orientation)
 
         if reachable1 and reachable2:
 
@@ -581,10 +598,8 @@ class StateMachine():
         pos1[2] = pos1[2] + place_height
         pos3[2] = pos3[2] + place_height
 
-        reachable1, pose1 = self.loose_pose_compute(tuple(pos1))
-        reachable2, pose2 = self.pose_compute(pos = tuple(pos2),block_ori=orientation)
-        _,joint_angles1 = kinematics.IK_geometric(pose1,block_ori=orientation)
-        _,joint_angles2 = kinematics.IK_geometric(pose2,block_ori=orientation)
+        reachable1, joint_angles1 = self.loose_pose_compute(tuple(pos1))
+        reachable2, joint_angles2 = self.pose_compute(pos = tuple(pos2),block_ori=orientation)
 
         if reachable1 and reachable2:
             move_time,ac_time = self.calMoveTime(joint_angles1)
