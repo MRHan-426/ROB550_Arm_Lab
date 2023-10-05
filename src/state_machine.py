@@ -481,7 +481,7 @@ class StateMachine():
                     return False,[0,0,0,0,0]
     
     
-    def loose_pose_compute(self,pos):
+    def loose_pose_compute(self,pos,block_ori):
         """!
         @brief      compute pose for those pre_positions or not important positions
                     so there is no strict requirement for phi
@@ -491,9 +491,10 @@ class StateMachine():
         y = pos2[1]
         z = pos2[2]
         phi = np.pi/2
+        orientation = block_ori
         can_reach = False
         
-        can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi])
+        can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi],block_ori=orientation)
         if can_reach:
             return True,joint_angles
         else:
@@ -504,7 +505,7 @@ class StateMachine():
                 z= z - 2
                 phi = phi - np.pi * (1.0/45.0)
                 correction_counter = correction_counter + 1
-                can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi])
+                can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi],block_ori=orientation)
                 if can_reach:
                     return True,joint_angles
                 if correction_counter > 15:
@@ -544,10 +545,14 @@ class StateMachine():
         pos1[2] = pos1[2] + pick_height
         pos3[2] = pos3[2] + pick_height
 
-        reachable1, joint_angles1 = self.loose_pose_compute(tuple(pos1))
+        reachable1, joint_angles1 = self.loose_pose_compute(tuple(pos1),block_ori=orientation)
         reachable2, joint_angles2 = self.pose_compute(pos = tuple(pos2),block_ori=orientation)
 
         if reachable1 and reachable2:
+
+            # open the gripper
+            self.rxarm.gripper.release()
+            time.sleep(0.5)
 
             # go to the pre-picking point
             move_time,ac_time = self.calMoveTime(joint_angles1)
@@ -557,24 +562,45 @@ class StateMachine():
                                            blocking = True)
             print("Auto Pick: Reach Pos1")
             time.sleep(0.1)
-            
-            # open the gripper
-            self.rxarm.gripper.release()
-            time.sleep(0.5)
+        
+            # # go the the picking point not using dichotomy
+            # move_time,ac_time = self.calMoveTime(joint_angles2)
+            # self.rxarm.arm.set_joint_positions(joint_angles2,
+            #                                moving_time = move_time, 
+            #                                accel_time = ac_time,
+            #                                blocking = True)
+            # print("Auto Pick: Reach Pos2")
+            # time.sleep(0.1)
 
-            # go the the picking point
-            move_time,ac_time = self.calMoveTime(joint_angles2)
-            self.rxarm.arm.set_joint_positions(joint_angles2,
+            # go to the picking point using dichotomy 
+            displacement = np.array(joint_angles2) - np.array(joint_angles1)
+            displacement_unit =  displacement
+            temp_joint = np.array(joint_angles1)
+            last_effort = self.rxarm.get_efforts()       
+          
+            for i in range(10):
+                displacement_unit = displacement_unit / 2
+                temp_joint = temp_joint + displacement_unit
+                move_time,ac_time = self.calMoveTime(temp_joint)
+                self.rxarm.arm.set_joint_positions(temp_joint.tolist(),
                                            moving_time = move_time, 
                                            accel_time = ac_time,
                                            blocking = True)
-            print("Auto Pick: Reach Pos2")
-            time.sleep(0.1)
+                time.sleep(0.1)
+
+                effort = self.rxarm.get_efforts()
+                effort_difference = (effort - last_effort)[1:3]
+                last_effort = effort
+                effort_diff_norm = np.linalg.norm(effort_difference)
+                print("Auto Place: Effort difference is: ", effort_diff_norm)
+                
+                if effort_diff_norm > 800:
+                    print("Auto Place: Reach Pos2")
+                    break
             
             # close the gripper and pick the block
             self.rxarm.gripper.grasp()
             time.sleep(1)
-
 
             move_time,ac_time = self.calMoveTime(joint_angles1)
             self.rxarm.arm.set_joint_positions(joint_angles1,
@@ -605,7 +631,7 @@ class StateMachine():
         pos1[2] = pos1[2] + place_height
         pos3[2] = pos3[2] + place_height
 
-        reachable1, joint_angles1 = self.loose_pose_compute(tuple(pos1))
+        reachable1, joint_angles1 = self.loose_pose_compute(tuple(pos1),block_ori=orientation)
         reachable2, joint_angles2 = self.pose_compute(pos = tuple(pos2),block_ori=orientation)
 
         if reachable1 and reachable2:
@@ -641,7 +667,6 @@ class StateMachine():
                                            accel_time = ac_time,
                                            blocking = True)
                 time.sleep(0.1)
-                
 
                 effort = self.rxarm.get_efforts()
                 effort_difference = (effort - last_effort)[1:3]
@@ -649,7 +674,7 @@ class StateMachine():
                 effort_diff_norm = np.linalg.norm(effort_difference)
                 print("Auto Place: Effort difference is: ", effort_diff_norm)
                 
-                if effort_diff_norm > 50:
+                if effort_diff_norm > 800:
                     print("Auto Place: Reach Pos2")
                     break
 
