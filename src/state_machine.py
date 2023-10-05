@@ -866,9 +866,13 @@ class StateMachine():
             print("There is no blocks in the workspace!!")
             time.sleep(1)
         
-        # Initialize place positions - x coordinates
-        small_x = [-150,-400,-350,-300,-250,-200,-150]
-        big_x = [150,150,200,250,300,350,400]
+        # Define a custom order for colors
+        color_order = {"red": 0, "orange": 1, "yellow": 2, "green": 3, "blue": 4, "purple": 5}
+
+        # Sort the list of blocks by color
+        blocks = self.camera.blocks
+        sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
+        
         for block in self.camera.blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
             # print("00000000000000000000000000000")
