@@ -532,6 +532,7 @@ class StateMachine():
                                            accel_time = ac_time,
                                            blocking = True)
             print("Auto Pick: Reach Pos1")
+            time.sleep(0.1)
             
             # open the gripper
             self.rxarm.gripper.release()
@@ -544,10 +545,11 @@ class StateMachine():
                                            accel_time = ac_time,
                                            blocking = True)
             print("Auto Pick: Reach Pos2")
+            time.sleep(0.1)
             
             # close the gripper and pick the block
             self.rxarm.gripper.grasp()
-            time.sleep(2)
+            time.sleep(1)
 
 
             move_time,ac_time = self.calMoveTime(joint_angles1)
@@ -557,8 +559,9 @@ class StateMachine():
                                            blocking = True)
             print("Auto Pick: Reach Pos3")
             print("Auto Pick Complete: Successfully pick the block!")
+            time.sleep(0.1)
         else:
-            print("Unreachable Position!")
+            print("Auto Pick: Unreachable Position!")
 
 
 
@@ -584,48 +587,76 @@ class StateMachine():
         _,joint_angles2 = kinematics.IK_geometric(pose2,block_ori=orientation)
 
         if reachable1 and reachable2:
-            self.rxarm.set_positions(joint_angles1)
-            time.sleep(2)
+            move_time,ac_time = self.calMoveTime(joint_angles1)
+            self.rxarm.set_joint_positions(joint_angles1,
+                                           moving_time = move_time, 
+                                           accel_time = ac_time,
+                                           blocking = True)
+            print("Auto Place: Reach Pos1")
+            time.sleep(0.1)
  
             displacement = np.array(joint_angles2) - np.array(joint_angles1)
             displacement_unit =  displacement
             temp_joint = np.array(joint_angles1)
             last_effort = self.rxarm.get_efforts()
+
+            # # not using dichotomy
+            # move_time,ac_time = self.calMoveTime(joint_angles2)
+            # self.rxarm.set_joint_positions(joint_angles2,
+            #                                moving_time = move_time, 
+            #                                accel_time = ac_time,
+            #                                blocking = True)
+            # print("Auto Place: Reach Pos2")
+            # time.sleep(0.1)
                  
-            # self.rxarm.set_positions(joint_angles2)
-            # time.sleep(2)
-           
             # Use dichotomy to place the block accurately
             for i in range(10):
                 displacement_unit = displacement_unit / 2
                 temp_joint = temp_joint + displacement_unit
-                self.rxarm.set_positions(temp_joint.tolist())
-                time.sleep(1)
+                move_time,ac_time = self.calMoveTime(temp_joint)
+                self.rxarm.set_joint_positions(temp_joint.tolist(),
+                                           moving_time = move_time, 
+                                           accel_time = ac_time,
+                                           blocking = True)
+                time.sleep(0.1)
+                
 
                 effort = self.rxarm.get_efforts()
                 effort_difference = (effort - last_effort)[1:3]
                 last_effort = effort
                 effort_diff_norm = np.linalg.nom(effort_difference)
-                print("effort difference is: ", effort_diff_norm)
+                print("Auto Place: Effort difference is: ", effort_diff_norm)
                 
                 if effort_diff_norm > 50:
+                    print("Auto Place: Reach Pos2")
                     break
-                
 
             self.rxarm.gripper.release()
-            time.sleep(0.5)
-            self.rxarm.set_positions(joint_angles1)
-            time.sleep(2)
-            print("Successfully place the block!")
+            time.sleep(1)
+
+            move_time,ac_time = self.calMoveTime(joint_angles1)
+            self.rxarm.set_joint_positions(joint_angles1,
+                                           moving_time = move_time, 
+                                           accel_time = ac_time,
+                                           blocking = True)
+            print("Auto Place: Reach Pos3")
+            time.sleep(0.1)
+            print("Auto Place Complete: Successfully place the block!")
         else:
-            print("Unreachable Position!")
+            print("Auto Place: Unreachable Position!")
 
 
     def safe_pos(self):
         self.status_message = "State: Returning to safe position"
         self.current_state = "safe_pos"
-        self.rxarm.set_positions([0,0,-np.pi/2,0,0])
-        time.sleep(1)
+        safe_pos = [0,0,-np.pi/2,0,0]
+        move_time,ac_time = self.calMoveTime([0,0,-np.pi/2,0,0])
+        self.rxarm.set_joint_positions([0,0,-np.pi/2,0,0],
+                                           moving_time = move_time, 
+                                           accel_time = ac_time,
+                                           blocking = True)
+        print("Safe Pos: Successfully Reach Safe Pos")
+        time.sleep(0.1)
         self.next_state = "idle"
 
 
