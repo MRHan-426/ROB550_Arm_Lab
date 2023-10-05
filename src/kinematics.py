@@ -193,20 +193,16 @@ def Joint_Pos_Compensation(joint_angles):
     return joint_angles_corrected
 
 def Target_Pos_Compensation(world_pos):
-     """!
+    """!
     @breif      do position compensation for world coordinate (generally compensation for gravity)
     """
-     x = world_pos[0]
-     y = world_pos[1]
-     z = world_pos[2]
-     xy_dist = np.sqrt(np.square(x) + np.square(y))
-
-     if xy_dist < 150:
-         return [x,y,z]
-     else:
-         z_offset = (xy_dist - 150) * 0.05
-         z = z+z_offset
-         return [x,y,z]
+    x = world_pos[0]
+    y = world_pos[1]
+    z = world_pos[2]
+    xy_dist = np.sqrt(np.square(x) + np.square(y))
+    z_offset = xy_dist * 0.068 + 4
+    z = z+z_offset
+    return [x,y,z]
 
     
 
