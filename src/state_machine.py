@@ -290,7 +290,7 @@ class StateMachine():
         @brief    calculate the moving time and accelerate time of motion 
         """
         displacement = target_joint - self.rxarm.get_positions()
-        angular_v = np.ones(displacement.shape) * (np.pi / 4)
+        angular_v = np.ones(displacement.shape) * (np.pi / 6)
         angular_t = np.abs(displacement) / angular_v
         move_time = np.max(angular_t)
         if move_time < 0.4:
@@ -450,7 +450,7 @@ class StateMachine():
             for i in range(2):
                 x = x * 0.99
                 y = y * 0.99
-                phi = phi - np.pi*(1/30)
+                phi = phi - np.pi*(1.0/30.0)
                 can_Pick,joint_angles = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
                 if can_Pick:
                     print("Successfully compute IK pose")
@@ -458,7 +458,7 @@ class StateMachine():
             
             correction_counter = 0
             while not can_Pick:
-                phi = phi - np.pi*(1/90)
+                phi = phi - np.pi*(1.0/90.0)
                 can_Pick,joint_angles = kinematics.IK_geometric([x,y,z,phi],block_ori=orientaion)
                 correction_counter = correction_counter + 1
                 if can_Pick:
@@ -490,7 +490,7 @@ class StateMachine():
                 x = x * 0.99
                 y = y * 0.99
                 z= z - 2
-                phi = phi - np.pi * (1/45)
+                phi = phi - np.pi * (1.0/45.0)
                 correction_counter = correction_counter + 1
                 can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi])
                 if can_reach:
@@ -544,7 +544,7 @@ class StateMachine():
 
             # go to the pre-picking point
             move_time,ac_time = self.calMoveTime(joint_angles1)
-            self.rxarm.set_joint_positions(joint_angles1,
+            self.rxarm.arm.set_joint_positions(joint_angles1,
                                            moving_time = move_time, 
                                            accel_time = ac_time,
                                            blocking = True)
@@ -557,7 +557,7 @@ class StateMachine():
 
             # go the the picking point
             move_time,ac_time = self.calMoveTime(joint_angles2)
-            self.rxarm.set_joint_positions(joint_angles2,
+            self.rxarm.arm.set_joint_positions(joint_angles2,
                                            moving_time = move_time, 
                                            accel_time = ac_time,
                                            blocking = True)
@@ -570,7 +570,7 @@ class StateMachine():
 
 
             move_time,ac_time = self.calMoveTime(joint_angles1)
-            self.rxarm.set_joint_positions(joint_angles1,
+            self.rxarm.arm.set_joint_positions(joint_angles1,
                                            moving_time = move_time, 
                                            accel_time = ac_time,
                                            blocking = True)
@@ -603,7 +603,7 @@ class StateMachine():
 
         if reachable1 and reachable2:
             move_time,ac_time = self.calMoveTime(joint_angles1)
-            self.rxarm.set_joint_positions(joint_angles1,
+            self.rxarm.arm.set_joint_positions(joint_angles1,
                                            moving_time = move_time, 
                                            accel_time = ac_time,
                                            blocking = True)
@@ -617,7 +617,7 @@ class StateMachine():
 
             # # not using dichotomy
             # move_time,ac_time = self.calMoveTime(joint_angles2)
-            # self.rxarm.set_joint_positions(joint_angles2,
+            # self.rxarm.arm.set_joint_positions(joint_angles2,
             #                                moving_time = move_time, 
             #                                accel_time = ac_time,
             #                                blocking = True)
@@ -629,7 +629,7 @@ class StateMachine():
                 displacement_unit = displacement_unit / 2
                 temp_joint = temp_joint + displacement_unit
                 move_time,ac_time = self.calMoveTime(temp_joint)
-                self.rxarm.set_joint_positions(temp_joint.tolist(),
+                self.rxarm.arm.set_joint_positions(temp_joint.tolist(),
                                            moving_time = move_time, 
                                            accel_time = ac_time,
                                            blocking = True)
@@ -639,7 +639,7 @@ class StateMachine():
                 effort = self.rxarm.get_efforts()
                 effort_difference = (effort - last_effort)[1:3]
                 last_effort = effort
-                effort_diff_norm = np.linalg.nom(effort_difference)
+                effort_diff_norm = np.linalg.norm(effort_difference)
                 print("Auto Place: Effort difference is: ", effort_diff_norm)
                 
                 if effort_diff_norm > 50:
@@ -650,7 +650,7 @@ class StateMachine():
             time.sleep(1)
 
             move_time,ac_time = self.calMoveTime(joint_angles1)
-            self.rxarm.set_joint_positions(joint_angles1,
+            self.rxarm.arm.set_joint_positions(joint_angles1,
                                            moving_time = move_time, 
                                            accel_time = ac_time,
                                            blocking = True)
@@ -664,9 +664,9 @@ class StateMachine():
     def safe_pos(self):
         self.status_message = "State: Returning to safe position"
         self.current_state = "safe_pos"
-        safe_pos = [0,0,-np.pi/2,0,0]
-        move_time,ac_time = self.calMoveTime([0,0,-np.pi/2,0,0])
-        self.rxarm.set_joint_positions([0,0,-np.pi/2,0,0],
+        safe_pos = [0,0,0,0,0]
+        move_time,ac_time = self.calMoveTime([0,0,0,0,0])
+        self.rxarm.arm.set_joint_positions([0,0,0,0,0],
                                            moving_time = move_time, 
                                            accel_time = ac_time,
                                            blocking = True)

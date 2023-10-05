@@ -187,8 +187,8 @@ def Joint_Pos_Compensation(joint_angles):
 
     # rough version
     joint_angles_corrected = joint_angles.copy()
-    joint_angles_corrected[1] = joint_angles_corrected[1] + np.pi/90
-    joint_angles_corrected[2] = joint_angles_corrected[2] + np.pi/90
+    joint_angles_corrected[1] = joint_angles_corrected[1] - np.pi/180
+    joint_angles_corrected[2] = joint_angles_corrected[2] - np.pi/180
     joint_angles_corrected[3] = joint_angles_corrected[3] + 0
     return joint_angles_corrected
 
