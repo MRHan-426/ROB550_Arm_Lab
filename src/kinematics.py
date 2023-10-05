@@ -188,9 +188,28 @@ def Joint_Pos_Compensation(joint_angles):
     # rough version
     joint_angles_corrected = joint_angles.copy()
     joint_angles_corrected[1] = joint_angles_corrected[1] - np.pi/180
-    joint_angles_corrected[2] = joint_angles_corrected[2] - np.pi/180
+    joint_angles_corrected[2] = joint_angles_corrected[2] - np.pi/90
     joint_angles_corrected[3] = joint_angles_corrected[3]
     return joint_angles_corrected
+
+def Target_Pos_Compensation(world_pos):
+     """!
+    @breif      do position compensation for world coordinate (generally compensation for gravity)
+    """
+     x = world_pos[0]
+     y = world_pos[1]
+     z = world_pos[2]
+     xy_dist = np.sqrt(np.square(x) + np.square(y))
+
+     if xy_dist < 150:
+         return [x,y,z]
+     else:
+         z_offset = (xy_dist - 150) * 0.05
+         z = z+z_offset
+         return [x,y,z]
+
+    
+
 
 
 def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
@@ -271,22 +290,27 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
     # Moving Range Restriction
     if theta1 >= np.pi or theta1 <= -np.pi:
         print("[IK ERROR] Can't move to target angles")
+        print("[IK ERROR] theta1 is: ", theta1)
         return False, [0, 0, 0, 0, 0]
     
-    if theta2 >= np.deg2rad(90) or theta2 <= -np.deg2rad(90):
+    if theta2 >= np.deg2rad(120) or theta2 <= -np.deg2rad(120):
         print("[IK ERROR] Can't move to target angles")
+        print("[IK ERROR] theta2 is: ", theta2)
         return False, [0, 0, 0, 0, 0]
 
-    if theta3 >= np.deg2rad(90) or theta3 <= -np.deg2rad(90):
+    if theta3 >= np.deg2rad(120) or theta3 <= -np.deg2rad(120):
         print("[IK ERROR] Can't move to target angles")
+        print("[IK ERROR] theta3 is: ", theta3)
         return False, [0, 0, 0, 0, 0]
 
-    if theta4 >= np.deg2rad(90) or theta4 <= -np.deg2rad(90):
+    if theta4 >= np.deg2rad(120) or theta4 <= -np.deg2rad(120):
         print("[IK ERROR] Can't move to target angles")
+        print("[IK ERROR] theta4 is: ", theta4)
         return False, [0, 0, 0, 0, 0]
 
     if theta5 >= np.pi or theta5 <= -np.pi:
         print("[IK ERROR] Can't move to target angles")
+        print("[IK ERROR] theta5 is: ", theta5)
         return False, [0, 0, 0, 0, 0]
     
     

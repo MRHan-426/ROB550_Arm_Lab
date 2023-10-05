@@ -700,41 +700,68 @@ class StateMachine():
         self.current_state = "motion_test"
         self.next_state = "idle"
 
-        point1 = [200,200,50,np.pi/2]
-        point2 = [200,200,0,np.pi/2]
-        point3 = [200,200,100,0]
+        point1 = kinematics.Target_Pos_Compensation([250,275,80])
+        point1 = [point1[0],point1[1],point1[2],np.pi/2]
+        point2 = kinematics.Target_Pos_Compensation([250,275,10])
+        point2 = [point2[0],point2[1],point2[2],np.pi/2]
+        point3 = kinematics.Target_Pos_Compensation([250,275,120])
+        point3 = [point3[0],point3[1],point3[2],0]
 
         can_reach1,joint_angles1 = kinematics.IK_geometric(point1)
         can_reach2,joint_angles2 = kinematics.IK_geometric(point2)
         can_reach3,joint_angles3 = kinematics.IK_geometric(point3)
 
         if can_reach1:
-            joint_angles1 = kinematics.Joint_Pos_Compensation(joint_angles1)
+            print("move to point1")
+            # joint_angles1 = kinematics.Joint_Pos_Compensation(joint_angles1)
             move_time,ac_time = self.calMoveTime(joint_angles1)
             self.rxarm.arm.set_joint_positions(joint_angles1,
                                                moving_time = move_time,
                                                accel_time = ac_time,
                                                blocking = True)
+            curr_pos = self.rxarm.get_positions()
+            print("current pos is: ",curr_pos)
             time.sleep(3)
 
-            if can_reach2:
-                joint_angles2 = kinematics.Joint_Pos_Compensation(joint_angles2)
-                move_time,ac_time = self.calMoveTime(joint_angles2)
-                self.rxarm.arm.set_joint_positions(joint_angles2,
-                                                moving_time = move_time,
-                                                accel_time = ac_time,
-                                                blocking = True)
-                time.sleep(3)
+        if can_reach2:
+            print("move to point2")
+            joint_angles2 = kinematics.Joint_Pos_Compensation(joint_angles2)
+            move_time,ac_time = self.calMoveTime(joint_angles2)
+            self.rxarm.arm.set_joint_positions(joint_angles2,
+                                            moving_time = move_time,
+                                            accel_time = ac_time,
+                                            blocking = True)
+            curr_pos = self.rxarm.get_positions()
+            print("current pos is: ",curr_pos)
+            time.sleep(3)
+            
 
-                if can_reach3:
-                    joint_angles3 = kinematics.Joint_Pos_Compensation(joint_angles3)
-                    move_time,ac_time = self.calMoveTime(joint_angles3)
-                    self.rxarm.arm.set_joint_positions(joint_angles3,
-                                                    moving_time = move_time,
-                                                    accel_time = ac_time,
-                                                    blocking = True)
-                    print("Motion Test Done!")
-                    time.sleep(3)
+        if can_reach3:
+            print("move to point3")
+            # joint_angles3 = kinematics.Joint_Pos_Compensation(joint_angles3)
+            move_time,ac_time = self.calMoveTime(joint_angles3)
+            self.rxarm.arm.set_joint_positions(joint_angles3,
+                                            moving_time = move_time,
+                                            accel_time = ac_time,
+                                            blocking = True)
+            curr_pos = self.rxarm.get_positions()
+            print("current pos is: ",curr_pos)
+            time.sleep(3)
+
+        # if can_reach1:
+        #     print("move to point4")
+        #     move_time,ac_time = self.calMoveTime(joint_angles1)
+        #     self.rxarm.arm.set_joint_positions(joint_angles1,
+        #                                     moving_time = move_time,
+        #                                     accel_time = ac_time,
+        #                                     blocking = True)
+        #     curr_pos = self.rxarm.get_positions()
+        #     print("current pos is: ",curr_pos)
+        #     time.sleep(3)
+        #     print("Motion Test Done!")
+                
+
+
                     
 
 
