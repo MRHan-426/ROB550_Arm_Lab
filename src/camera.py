@@ -79,6 +79,7 @@ class Camera():
         self.block_contours = np.array([])
         self.block_detections = np.array([])
 
+
     def processVideoFrame(self):
         """!
         @brief      Process a video frame
@@ -186,6 +187,29 @@ class Camera():
         return np.array(original_points)
 
 
+    def depth_correction(self, depth_img):
+        """!
+        @brief      Use affline transformation to modify depth image
+
+
+        @param      depth: raw depth image (720, 1280, 1)  
+                    return: gray image (720, 1280, 1)        
+        """
+
+        y = np.arange(depth_img.shape[0])
+        x = np.arange(depth_img.shape[1])
+        mesh_x, mesh_y = np.meshgrid(x, y)
+        Z = depth_img.astype(np.float32)
+        X = (mesh_x - self.intrinsic_matrix[0, 2]) * Z / self.intrinsic_matrix[0, 0]
+        Y = (mesh_y - self.intrinsic_matrix[1, 2]) * Z / self.intrinsic_matrix[1, 1]
+
+        homogeneous_coordinates = np.stack((X, Y, Z, np.ones_like(Z)), axis=-1)
+        P_c = homogeneous_coordinates.reshape(-1, 4).T
+        P_w = np.linalg.inv(self.extrinsic_matrix) @ P_c
+        points_3d = P_w.T[:, 2].reshape(depth_img.shape[0], depth_img.shape[1], 1)
+
+        return points_3d
+
 
     def projectGridInRGBImage(self):
         """!
@@ -236,10 +260,10 @@ class Camera():
             self.boundary.append(self.inv_affline_transformation([[200, 50],[200, 700],[1100, 700],[1100, 50]]))
                 
             self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]))
-            if self.detect_blocks == True:
-                
 
-                self.blocks = new_detectBlocksInDepthImage(self.DepthFrameRaw, rgb_img, boundary =self.boundary)
+            if self.detect_blocks == True:
+                depth_img = self.depth_correction(self.DepthFrameRaw)
+                self.blocks = new_detectBlocksInDepthImage(depth_img, rgb_img, boundary =self.boundary)
 
                 output_image = drawblock(self.blocks, rgb_img, boundary=None, new= True)
 

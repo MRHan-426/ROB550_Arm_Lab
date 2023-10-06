@@ -311,7 +311,8 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
     
     
     # print("Success! The joint angles are: ", np.rad2deg(theta1), ", ", np.rad2deg(theta2), ", ", np.rad2deg(theta3), ", ", np.rad2deg(theta4), ", ", np.rad2deg(theta5), ", ")
-    print("Success! The joint angles(deg) are: ", theta1, ", ", theta2, ", ", theta3, ", ", theta4, ", ", theta5)
+    # print("Success! The joint angles(deg) are: ", theta1, ", ", theta2, ", ", theta3, ", ", theta4, ", ", theta5)
+    print("IK_Kinematics: Success")
     return True, [theta1,theta2,theta3,theta4,theta5]
     pass
 

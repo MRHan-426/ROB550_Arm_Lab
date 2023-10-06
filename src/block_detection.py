@@ -143,39 +143,6 @@ def detectBlocksColorInRGBImage(img, position: tuple) -> str:
     return detected_color
 
 
-
-
-def depth_correction(depth_img, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_matrix = EXTRINSIC_MATRIX):
-    """!
-    @brief      Use affline transformation to modify depth image
-
-
-    @param      depth: raw depth image (720, 1280, 1)  
-                return: gray image (720, 1280, 1)        
-    """
-
-
-
-
-    y = np.arange(depth_img.shape[0])
-    x = np.arange(depth_img.shape[1])
-    mesh_x, mesh_y = np.meshgrid(x, y)
-    Z = depth_img.astype(np.float32)
-    X = (mesh_x - intrinsic_matrix[0, 2]) * Z / intrinsic_matrix[0, 0]
-    Y = (mesh_y - intrinsic_matrix[1, 2]) * Z / intrinsic_matrix[1, 1]
-
-
-    homogeneous_coordinates = np.stack((X, Y, Z, np.ones_like(Z)), axis=-1)
-    P_c = homogeneous_coordinates.reshape(-1, 4).T
-    P_w = np.linalg.inv(extrinsic_matrix) @ P_c
-    points_3d = P_w.T[:, 2].reshape(depth_img.shape[0], depth_img.shape[1], 1)
-
-
-    return points_3d
-
-
-
-
 def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_matrix = EXTRINSIC_MATRIX):
     """!
     @brief      Detect blocks from depth
@@ -192,7 +159,7 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
     if isinstance(depth_img, str):
         depth_img = cv2.imread(depth_img, cv2.IMREAD_UNCHANGED)
        
-    depth_data = depth_correction(depth_img, intrinsic_matrix, extrinsic_matrix)
+    depth_data = depth_img
 
 
     #  using depth image to detect contour
@@ -379,7 +346,6 @@ def new_detectBlocksInDepthImage(depth_raw, output_img, boundary, blind_rect=Non
     lab_img = cv2.cvtColor(output_img, cv2.COLOR_RGB2LAB)
     hsv_img = cv2.cvtColor(output_img, cv2.COLOR_RGB2HSV)
 
-    depth_raw = depth_correction(depth_raw)
     depth_raw = depth_raw[:,:,0].astype('uint8')
 
     depth_raw = cv2.medianBlur(depth_raw, 3)
@@ -402,7 +368,7 @@ def new_detectBlocksInDepthImage(depth_raw, output_img, boundary, blind_rect=Non
 
     for contour in contours:
         M = cv2.moments(contour)
-        if M['m00'] < 100 or abs(M["m00"]) > 7000:
+        if M['m00'] < 500 or abs(M["m00"]) > 7000:
             continue
         mask_single = np.zeros_like(depth_raw, dtype=np.uint8)
         cv2.drawContours(mask_single, [contour], -1, 255, cv2.FILLED)
