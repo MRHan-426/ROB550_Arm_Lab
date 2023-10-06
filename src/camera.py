@@ -24,23 +24,15 @@ INTRINISC_MATRIX = np.array([[918.2490195188435, 0.0, 636.4533753942957],
                             [0.0, 912.0611927215057, 365.23840749139805],
                             [0.0, 0.0, 1.0]])
 
+DISTORTION = np.array([0.12255661041263047, -0.19338918906656302, 0.00411197288757392, 0.007337075149104217, 0.0])
 
 EXTRINSIC_MATRIX = np.array(
-
-# [[ 9.99295294e-01,-2.69960620e-02, -2.60792555e-02 , 3.32542585e+01],
-#  [-2.32745506e-02,-9.90742319e-01,  1.33745849e-01 , 2.23006264e+02],
-#  [-2.94484333e-02, -1.33044615e-01, -9.90672459e-01 , 1.03041614e+03],
-#  [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00  ,1.00000000e+00]]
-
 [[ 9.99267282e-01, -2.77121437e-02, -2.63995433e-02, 3.12425150e+01],
  [-2.01468953e-02, -9.67306739e-01,  2.52807785e-01, 1.04118526e+02],
  [-3.25423018e-02, -2.52090679e-01, -9.67156289e-01, 1.04948263e+03],
  [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00, 1.00000000e+00]]
-
-
 )
 
-DISTORTION = np.array([0.12255661041263047, -0.19338918906656302, 0.00411197288757392, 0.007337075149104217, 0.0])
 
 class Camera():
     """!
@@ -60,11 +52,13 @@ class Camera():
         self.DepthFrameRGB = np.zeros((720,1280, 3)).astype(np.uint8)
         self.tagsCenter = []
         self.tagsNotChange = []
+        self.boundary = []
+
         # mouse clicks & calibration variables
         self.cameraCalibrated = False
         self.intrinsic_matrix = INTRINISC_MATRIX
-        self.extrinsic_matrix = EXTRINSIC_MATRIX
         self.distortion = DISTORTION
+        self.extrinsic_matrix = np.loadtxt("../config/extrinsic.txt", delimiter=', ')
         self.use_default_intrinisc_matrix = False
         self.last_click = np.array([0, 0])
         self.last_click_worldframe = (0.0, 0.0, 0.0)
@@ -175,29 +169,23 @@ class Camera():
         except:
             return None
 
-    def getAffineTransform(self, coord1, coord2):
+
+    def inv_affline_transformation(self, points:list)->list:
         """!
-        @brief      Find the affine matrix transform between 2 sets of corresponding coordinates.
+        @brief      compute inv affline for points
 
-        @param      coord1  Points in coordinate frame 1
-        @param      coord2  Points in coordinate frame 2
-
-        @return     Affine transform between coordinates.
         """
-        pts1 = coord1[0:3].astype(np.float32)
-        pts2 = coord2[0:3].astype(np.float32)
-        print(cv2.getAffineTransform(pts1, pts2).shape)
-        return cv2.getAffineTransform(pts1, pts2)
+        inv_transformation_matrix = np.linalg.inv(self.transformation_matrix)
+        original_points = []
+        for point in points:
+            transformed_coords = np.array([point[0], point[1], 1])
+            original_coords = np.matmul(inv_transformation_matrix, transformed_coords)
+            original_x = original_coords[0] / original_coords[2]
+            original_y = original_coords[1] / original_coords[2]
+            original_points.append([int(original_x), int(original_y)])
+        return np.array(original_points)
 
-    def loadCameraCalibration(self, file):
-        """!
-        @brief      Load camera intrinsic matrix from file.
 
-                    TODO: use this to load in any calibration files you need to
-
-        @param      file  The file
-        """
-        pass
 
     def projectGridInRGBImage(self):
         """!
@@ -230,7 +218,7 @@ class Camera():
                     
                     Once calibrited, use exrinsic matrix to finish this task
         """
-        modified_image = self.VideoFrame.copy()
+        rgb_img = self.VideoFrame.copy()
         image_points = np.array(self.tagsNotChange[:4]).astype(np.float32)
         world_points = np.array(self.tag_locations_2D).astype(np.float32)
 
@@ -244,14 +232,24 @@ class Camera():
             return None
         elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
             self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
-            # Create Birds-eye view
+            self.boundary = []
+            self.boundary.append(self.inv_affline_transformation([[200, 50],[200, 700],[1100, 700],[1100, 50]]))
+                
+            self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]))
             if self.detect_blocks == True:
-                self.blocks = detectBlocksInDepthImage(self.DepthFrameRaw, intrinsic_matrix=self.intrinsic_matrix, extrinsic_matrix=self.extrinsic_matrix)
-                modified_image = drawblock(self.blocks, modified_image)
-                modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
+                
+
+                self.blocks = new_detectBlocksInDepthImage(self.DepthFrameRaw, rgb_img, boundary =self.boundary)
+
+                output_image = drawblock(self.blocks, rgb_img, boundary=None, new= True)
+
+                modified_image = cv2.warpPerspective(output_image, self.transformation_matrix, (output_image.shape[1], output_image.shape[0]))
+                # cv2.rectangle(modified_image, (200, 50), (1100, 700), 255, cv2.FILLED)
+                # cv2.rectangle(modified_image, (570, 365),(735, 700), 0, cv2.FILLED)
                 self.GridFrame = modified_image
+
             else:
-                modified_image = cv2.warpPerspective(modified_image, self.transformation_matrix, (modified_image.shape[1], modified_image.shape[0]))
+                modified_image = cv2.warpPerspective(rgb_img, self.transformation_matrix, (rgb_img.shape[1], rgb_img.shape[0]))
                 self.GridFrame = modified_image
 
      
@@ -319,6 +317,9 @@ class Camera():
         print(self.extrinsic_matrix)
         print("======================================================")
         self.cameraCalibrated = True
+
+        filename = "../config/extrinsic.txt"
+        np.savetxt(filename, self.extrinsic_matrix, fmt='%10f', delimiter=', ')
 
             
     def transformFromImageToWorldFrame(self, pos: tuple) -> tuple:
@@ -517,7 +518,7 @@ class VideoThread(QThread):
                 depth_frame = self.camera.convertQtDepthFrame()
                 tag_frame = self.camera.convertQtTagImageFrame()
                 # this function is for check point2
-                # self.camera.projectGridInRGBImage()
+                self.camera.projectGridInRGBImage()
                 self.camera.birdEyesViewInGridFrame()
                 grid_frame = self.camera.convertQtGridFrame()
                 if ((rgb_frame != None) & (depth_frame != None)):

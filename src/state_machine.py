@@ -304,7 +304,7 @@ class StateMachine():
         """!
         @brief    calculate the moving time and accelerate time of motion 
         """
-        displacement = target_joint - self.rxarm.get_positions()
+        displacement = np.array(target_joint) - self.rxarm.get_positions()
         angular_v = np.ones(displacement.shape) * (np.pi / 6)
         angular_t = np.abs(displacement) / angular_v
         move_time = np.max(angular_t)
@@ -791,18 +791,19 @@ class StateMachine():
         self.current_state = "pick_n_sort"
         self.next_state = "idle"
         # Detect blocks in the plane
-        self.camera.blocks = detectBlocksInDepthImage(self.camera.DepthFrameRaw, intrinsic_matrix=self.camera.intrinsic_matrix, extrinsic_matrix=self.camera.extrinsic_matrix)
+        self.camera.blocks = new_detectBlocksInDepthImage(self.camera.DepthFrameRaw, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
             time.sleep(1)
 
         # Initialize place positions - x coordinates
         small_x , big_x = -150,150
+        self.initialize_rxarm()
+
         for block in self.camera.blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
             print(block_center,block.side)
             if block_center[2] < 50: 
-                # print(block_center)
                 # Move small blocks in right plane to left plane
                 if block.side <= 25:
                     if block_center[0] >= 0 or block_center[1] >= 0:
@@ -834,7 +835,8 @@ class StateMachine():
         self.current_state = "pick_n_stack"
         self.next_state = "idle"
         # Detect blocks in the plane
-        self.camera.blocks = detectBlocksInDepthImage(self.camera.DepthFrameRaw, intrinsic_matrix=self.camera.intrinsic_matrix, extrinsic_matrix=self.camera.extrinsic_matrix)
+        self.camera.blocks = new_detectBlocksInDepthImage(self.camera.DepthFrameRaw, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
+
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
             time.sleep(1)
@@ -877,7 +879,9 @@ class StateMachine():
         self.current_state = "line_em_up"
         self.next_state = "idle"
         # Detect blocks in the plane
-        self.camera.blocks = detectBlocksInDepthImage(self.camera.DepthFrameRaw, intrinsic_matrix=self.camera.intrinsic_matrix, extrinsic_matrix=self.camera.extrinsic_matrix)
+        
+        self.camera.blocks = new_detectBlocksInDepthImage(self.camera.DepthFrameRaw, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
+
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
             time.sleep(1)
@@ -928,7 +932,8 @@ class StateMachine():
         self.current_state = "stack_em_high"
         self.next_state = "idle"
         # Detect blocks in the plane
-        self.camera.blocks = detectBlocksInDepthImage(self.camera.DepthFrameRaw, intrinsic_matrix=self.camera.intrinsic_matrix, extrinsic_matrix=self.camera.extrinsic_matrix)
+        self.camera.blocks = new_detectBlocksInDepthImage(self.camera.DepthFrameRaw, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
+
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
             time.sleep(1)
@@ -977,7 +982,7 @@ class StateMachine():
         self.current_state = "to_the_sky"
         self.next_state = "idle"
         # Detect blocks in the plane
-        self.camera.blocks = detectBlocksInDepthImage(self.camera.DepthFrameRaw, intrinsic_matrix=self.camera.intrinsic_matrix, extrinsic_matrix=self.camera.extrinsic_matrix)
+        self.camera.blocks = new_detectBlocksInDepthImage(self.camera.DepthFrameRaw, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
             time.sleep(1)
