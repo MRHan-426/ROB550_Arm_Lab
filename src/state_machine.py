@@ -352,14 +352,14 @@ class StateMachine():
         print("Successfully put down the block, mission complete!")
 
 
-    def initialize_rxarm(self):
+    def initialize_rxarm(self, task = False):
         """!
         @brief      Initializes the rxarm.
         """
         self.current_state = "initialize_rxarm"
         self.status_message = "RXArm Initialized!"
         self.remembered_waypoint = []
-        if not self.rxarm.initialize():
+        if not self.rxarm.initialize(task = task):
             print('Failed to initialize the rxarm')
             self.status_message = "State: Failed to initialize the rxarm!"
             time.sleep(5)
@@ -870,7 +870,7 @@ class StateMachine():
                     #                    accel_time = ac_time,
                     #                    blocking = True)
                     # self.rxarm.set_positions([0,0,0,0,0])
-                    self.initialize_rxarm()
+                    self.initialize_rxarm(task=True)
                     time.sleep(2)
                     print("Reach Middle Point")
                     time.sleep(0.1)

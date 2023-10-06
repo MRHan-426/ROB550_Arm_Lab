@@ -93,7 +93,7 @@ class RXArm(InterbotixManipulatorXS):
         self.S_list = []
 
 
-    def initialize(self):
+    def initialize(self, task = False):
         """!
         @brief      Initializes the RXArm from given configuration file.
 
@@ -119,7 +119,8 @@ class RXArm(InterbotixManipulatorXS):
         self.arm.go_to_home_pose(moving_time=self.moving_time,
                              accel_time=self.accel_time,
                              blocking=False)
-        self.gripper.release()
+        if not task:
+            self.gripper.release()
         self.initialized = True
         return self.initialized
 
