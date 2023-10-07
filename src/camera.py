@@ -72,7 +72,7 @@ class Camera():
         self.grid_y_points = np.arange(-175, 525, 50)
         self.grid_points = np.array(np.meshgrid(self.grid_x_points, self.grid_y_points))
         self.tag_detections = np.array([])
-        self.tag_locations_3D = [[-250, -25, 0],[250, -25, 0],[250, 275, 0],[-250, 275, 0], [-425,-100,150], [475,400,150]]
+        self.tag_locations_3D = [[-250, -25, 0],[250, -25, 0],[250, 275, 0],[-250, 275, 0], [-475,-100,150], [475,400,150]]
         self.tag_locations_2D = [[400, 550], [900, 550], [900, 250], [400, 250]]
 
         """ block info """
@@ -257,13 +257,15 @@ class Camera():
             print(image_points.shape)
             return None
         elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
-            is_empty = np.all(self.transformation_matrix == 0)
-            if is_empty:
-                self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
-                print("===========================================")
-                print("Transformation matrix:")
-                print(self.transformation_matrix)
-                print("===========================================")
+            # is_empty = np.all(self.transformation_matrix == 0)
+            # if is_empty:
+            #     self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
+            #     print("===========================================")
+            #     print("Transformation matrix:")
+            #     print(self.transformation_matrix)
+            #     print("===========================================")
+            self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
+
             if self.cameraCalibrated == True and self.boundary == []:
                 self.boundary.append(self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]))
                 self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]))
@@ -457,6 +459,7 @@ class JBCalibrateListener(Node):
 
     def callback(self, msg):
         if msg.data == 1:
+            self.camera.cameraCalibrated = False
             self.camera.calibrateFromAprilTag(msg)
 
 

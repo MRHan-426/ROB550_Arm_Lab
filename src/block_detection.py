@@ -361,6 +361,10 @@ def drawblock(blocks, output_img:np.array, boundary = None, new:bool = False) ->
             cv2.putText(output_img, str(color), (center[0] + 15, center[1] - 15), font, 0.4, (0,255,0), thickness=1)
             cv2.circle(output_img, (center[0], center[1]), 2, (0,255,0), -1)
             cv2.putText(output_img, str(int(np.rad2deg(orientation))), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
+            if block.side > 30:
+                cv2.putText(output_img, "big block", (center[0] + 15, center[1] + 15), font, 0.4, (0,255,0), thickness=1)
+            else:
+                cv2.putText(output_img, "small block", (center[0] + 15, center[1] + 15), font, 0.4, (0,255,0), thickness=1)
             cv2.drawContours(output_img, [block.contour], -1, (255,0,0), 2)
     
     if boundary != None:
@@ -544,7 +548,7 @@ def detectBlocksInRGBImage(bgr_img, depth_raw, boundary):
         if count <= 3:
             continue
 
-        if M["m00"] < 850:
+        if M["m00"] < 1000:
             side = 20
         else:
             side = 40

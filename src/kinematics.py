@@ -238,7 +238,7 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
     if block_ori !=None:
         block_ori = np.pi/2 - block_ori
 
-    if z < 0:
+    if z < -20:
         print("[Target Pose Error] Manipulator cannot touch the plane")
         return False,[0,0,0,0,0]
     
@@ -313,6 +313,9 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
     # print("Success! The joint angles are: ", np.rad2deg(theta1), ", ", np.rad2deg(theta2), ", ", np.rad2deg(theta3), ", ", np.rad2deg(theta4), ", ", np.rad2deg(theta5), ", ")
     # print("Success! The joint angles(deg) are: ", theta1, ", ", theta2, ", ", theta3, ", ", theta4, ", ", theta5)
     print("IK_Kinematics: Success")
+
+    # Compensation for joint1 (don't know why)
+    theta1 = theta1 - np.pi/180
     return True, [theta1,theta2,theta3,theta4,theta5]
     pass
 
