@@ -189,7 +189,7 @@ def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, ext
     if isinstance(depth_img, str):
         depth_img = cv2.imread(depth_img, cv2.IMREAD_UNCHANGED)
        
-    depth_data = depth_correction(depth_img, intrinsic_matrix, extrinsic_matrix)
+    depth_data = depth_img
 
 
     #  using depth image to detect contour
@@ -361,7 +361,7 @@ def drawblock(blocks, output_img:np.array, boundary = None, new:bool = False) ->
             cv2.putText(output_img, str(color), (center[0] + 15, center[1] - 15), font, 0.4, (0,255,0), thickness=1)
             cv2.circle(output_img, (center[0], center[1]), 2, (0,255,0), -1)
             cv2.putText(output_img, str(int(np.rad2deg(orientation))), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
-            cv2.drawContours(output_img, block.contour, -1, (255,0,0), 2)
+            cv2.drawContours(output_img, [block.contour], -1, (255,0,0), 2)
     
     if boundary != None:
         cv2.fillPoly(output_img, [boundary[0]], 255)
@@ -370,13 +370,12 @@ def drawblock(blocks, output_img:np.array, boundary = None, new:bool = False) ->
 
 
 def new_detectBlocksInDepthImage(depth_raw, output_img, boundary, blind_rect=None):
-    lower = 10
-    upper = 40
+    lower = -100
+    upper = 100
 
     lab_img = cv2.cvtColor(output_img, cv2.COLOR_RGB2LAB)
     hsv_img = cv2.cvtColor(output_img, cv2.COLOR_RGB2HSV)
 
-    depth_raw = depth_correction(depth_raw)
     depth_raw = depth_raw[:,:,0].astype('uint8')
 
     depth_raw = cv2.medianBlur(depth_raw, 3)
@@ -399,38 +398,19 @@ def new_detectBlocksInDepthImage(depth_raw, output_img, boundary, blind_rect=Non
 
     for contour in contours:
         M = cv2.moments(contour)
-        if M['m00'] < 100 or abs(M["m00"]) > 7000:
+        if M['m00'] < 200 or abs(M["m00"]) > 7000:
             continue
-        mask_single = np.zeros_like(depth_raw, dtype=np.uint8)
-        cv2.drawContours(mask_single, [contour], -1, 255, cv2.FILLED)
-
-        depth_single = cv2.bitwise_and(depth_raw, depth_raw, mask=mask_single)
-        depth_array = depth_single[depth_single>=lower]
-
-        mode_real, _ = stats.mode(depth_array)
-        depth_diff =  mode_real - depth_array
-        depth_array_inliers = depth_array[depth_diff<8]
-       
-        mode = np.min(depth_array_inliers)
-        depth_new = cv2.inRange(depth_single, lower, int(mode)+5)
-        contours_new, _ = cv2.findContours(depth_new, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-
-        if not contours_new:
-            continue
-        contours_new_valid = max(contours_new, key=cv2.contourArea) # find the largest contour
-        M = cv2.moments(contours_new_valid)
-        if abs(M["m00"]) < 200:
-            continue
-        elif M["m00"] < 850:
+        
+        if M["m00"] < 850:
             side = 20
         else:
             side = 40
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
         cz = depth_raw[cy, cx]
-        block_ori = cv2.minAreaRect(contours_new_valid)[2]
-        color = new_detectBlocksColorInRGBImage(frame_rgb=output_img, frame_lab=lab_img, frame_hsv=hsv_img, contour=contours_new_valid)
-        a_block = block(center=[cy,cx] , depth=cz, contour=contours_new_valid, side=side, color= color,orientation=block_ori)
+        block_ori = cv2.minAreaRect(contour)[2]
+        color = new_detectBlocksColorInRGBImage(frame_rgb=output_img, frame_lab=lab_img, frame_hsv=hsv_img, contour=contour)
+        a_block = block(center=[cy,cx] , depth=cz, contour=contour, side=side, color= color,orientation=block_ori)
         blocks.append(a_block)
     print("======================================================")
     print("Block Detection done, Total: ", len(blocks))

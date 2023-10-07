@@ -93,7 +93,7 @@ class RXArm(InterbotixManipulatorXS):
         self.S_list = []
 
 
-    def initialize(self):
+    def initialize(self, task = False):
         """!
         @brief      Initializes the RXArm from given configuration file.
 
@@ -103,7 +103,7 @@ class RXArm(InterbotixManipulatorXS):
         """
         self.initialized = False
         # Wait for other threads to finish with the RXArm instead of locking every single call
-        time.sleep(0.25)
+        time.sleep(0.5)
         """ Commanded Values """
         self.position = [0.0] * self.num_joints  # radians
         """ Feedback Values """
@@ -114,12 +114,13 @@ class RXArm(InterbotixManipulatorXS):
         # Reset estop and initialized
         self.estop = False
         self.enable_torque()
-        self.moving_time = 2.0
+        self.moving_time = 3.0
         self.accel_time = 0.5
         self.arm.go_to_home_pose(moving_time=self.moving_time,
                              accel_time=self.accel_time,
                              blocking=False)
-        self.gripper.release()
+        if not task:
+            self.gripper.release()
         self.initialized = True
         return self.initialized
 
