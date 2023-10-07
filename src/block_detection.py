@@ -366,6 +366,8 @@ def drawblock(blocks, output_img:np.array, boundary = None, new:bool = False) ->
     if boundary != None:
         cv2.fillPoly(output_img, [boundary[0]], 255)
         cv2.fillPoly(output_img, [boundary[1]], 0)
+    cv2.imwrite("../data/result.png", output_img)
+    
     return output_img
 
 
@@ -418,8 +420,12 @@ def new_detectBlocksInDepthImage(depth_raw, output_img, boundary, blind_rect=Non
     return blocks
 
 
-def new_detectBlocksColorInRGBImage(frame_rgb, frame_lab, frame_hsv, contour):
+def new_detectBlocksColorInRGBImage(frame_rgb, contour):
     # color range
+    frame_rgb = cv2.cvtColor(frame_rgb, cv2.COLOR_BGR2RGB)
+    frame_lab = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2LAB)
+    frame_hsv = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2HSV)
+
     color_rgb_mean = np.array([[127, 19, 30], #red
                                 [164, 66, 5], #orange
                                 [218, 180, 30], #yellow
@@ -472,6 +478,86 @@ def new_detectBlocksColorInRGBImage(frame_rgb, frame_lab, frame_hsv, contour):
         return "purple"
     else:
         return "unknown"
+
+
+def detectBlocksInRGBImage(bgr_img, depth_raw, boundary):
+    bgr_img = cv2.cvtColor(bgr_img, cv2.COLOR_RGB2BGR)
+    # Step 1
+    # remove height > 100
+    lower = 900
+    upper = 1200
+    depth_seg = cv2.inRange(depth_raw, lower, upper)
+    mask_three_channel = cv2.merge([depth_seg, depth_seg, depth_seg])
+    bgr_img_remove_height = cv2.bitwise_and(bgr_img, mask_three_channel)
+
+    # Step 2
+    # remove shadow
+    black_mask = cv2.inRange(bgr_img_remove_height, np.array([0, 0, 0]), np.array([50, 50, 50]))
+    white_img = np.ones_like(bgr_img_remove_height) * 255
+    result = cv2.bitwise_and(bgr_img_remove_height, bgr_img_remove_height, mask=~black_mask)
+    result += cv2.bitwise_and(white_img, white_img, mask=black_mask)
+
+    # Step 3
+    # RGB filter
+    rgb_mask = cv2.inRange(bgr_img, np.array([80,80,70]), np.array([110, 120, 110]))
+    white_img = np.ones_like(result) * 255
+    result = cv2.bitwise_and(result, result, mask=~rgb_mask)
+    result += cv2.bitwise_and(white_img, white_img, mask=rgb_mask)
+
+    # Step 4
+    # hsv mask
+    hsv_img = cv2.cvtColor(result, cv2.COLOR_BGR2HSV)
+    hsv_mask = cv2.inRange(hsv_img, np.array([0,43,46]), np.array([180, 255, 255]))
+    hsv_mask = cv2.medianBlur(hsv_mask, 3)
+
+    # Step 5
+    # add mask
+    mask = np.zeros_like(hsv_mask, dtype=np.uint8)
+    cv2.fillPoly(mask, [boundary[0]], 255)
+    cv2.fillPoly(mask, [boundary[1]], 0)
+    masked_hsv = cv2.bitwise_and(hsv_mask, mask)
+
+    # Step 6
+    # find countor, filter countor
+    contours, _ = cv2.findContours(masked_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+    blocks = []
+    for contour in contours:
+        M = cv2.moments(contour)
+        if M['m00'] < 200 or abs(M["m00"]) > 7000:
+            continue
+        
+        # Step 7
+        # use depth to filter contours
+        side = 50
+        cx = int(M['m10']/M['m00'])
+        cy = int(M['m01']/M['m00'])
+        cz = depth_raw[cy, cx]
+        check_points = []
+        check_points.append(depth_raw[int(cy - side / 2), int(cx - side / 2)])
+        check_points.append(depth_raw[int(cy - side / 2), int(cx + side / 2)])
+        check_points.append(depth_raw[int(cy + side / 2), int(cx - side / 2)])
+        check_points.append(depth_raw[int(cy + side / 2), int(cx + side / 2)])
+        count = 0
+        for check_point in check_points:
+            if abs(int(check_point) - int(cz)) > 8:
+                count += 1
+        if count <= 3:
+            continue
+
+        if M["m00"] < 850:
+            side = 20
+        else:
+            side = 40
+
+        block_ori = cv2.minAreaRect(contour)[2]
+        color = new_detectBlocksColorInRGBImage(frame_rgb=bgr_img, contour=contour)
+
+        a_block = block(center=[cy,cx] , depth=cz, contour=contour, side=side, color= color,orientation=block_ori)
+        blocks.append(a_block)
+
+    print(f"There is {len(blocks)} blocks")
+    return blocks
+
 
 
 if __name__ == '__main__':
