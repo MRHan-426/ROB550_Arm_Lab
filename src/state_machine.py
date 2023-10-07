@@ -800,53 +800,7 @@ class StateMachine():
         self.next_state = "idle"
 
 
-    # # Event 1:Pick'n sort!
-    # def pick_n_sort(self):
-    #     self.current_state = "pick_n_sort"
-    #     self.next_state = "idle"
-    #     # Detect blocks in the plane
-    #     depth_img = self.camera.depth_correction(self.camera.DepthFrameRaw)
-    #     self.camera.blocks = new_detectBlocksInDepthImage(depth_img, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
-    #     while self.camera.blocks == None:
-    #         print("There is no blocks in the workspace!!")
-    #         time.sleep(1)
-
-    #     # Initialize place positions - x coordinates
-    #     small_x , big_x = -150,150
-    #     self.initialize_rxarm()
-
-    #     for block in self.camera.blocks:
-    #         block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
-    #         # print(block_center,block.side)
-    #         if block_center[2] < 50: 
-    #             # Move small blocks in right plane to left plane
-    #             if block.side <= 25:
-    #                 if block_center[0] >= 0 or block_center[1] >= 0:
-    #                     print("=========== Small")
-    #                     print(block_center)
-    #                     print("===========")
-    #                     self.auto_pick(target_pos=block_center,block_ori = block_orientation)
-    #                     time.sleep(1)
-    #                     self.auto_place(target_pos=[small_x,-100,0],target_orientation = 0)
-    #                     small_x -= 60
-    #             # Move big blocks in left plane to right plane
-    #             elif block.side >= 35:
-    #                 if block_center[0] <= 0 or block_center[1] >= 0:
-    #                     print("+++++++++++ Big")
-    #                     print(block_center)
-    #                     print("+++++++++++")
-    #                     self.auto_pick(target_pos=block_center,block_ori = block_orientation)
-    #                     time.sleep(1)
-    #                     self.auto_place(target_pos=[big_x,-100,0],target_orientation = 0)
-    #                     big_x += 60
-    #         time.sleep(0.5)
-    #         self.initialize_rxarm()
-    #         time.sleep(1)
-    #         # self.safe_pos()
-    #     print("Pick 'n sort finished")    
-
-
-        # Event 1:Pick'n sort!
+    # Event 1:Pick'n sort!
     def pick_n_sort(self):
         self.current_state = "pick_n_sort"
         self.next_state = "idle"
@@ -858,34 +812,104 @@ class StateMachine():
             time.sleep(1)
 
         # Initialize place positions - x coordinates
-        big_y = -100
+        small_x , big_x = -150,150
+        small_y,big_y = -100
+        small_counter,big_counter = 0
         self.initialize_rxarm()
 
         for block in self.camera.blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
             # print(block_center,block.side)
-            if block_center[2] < 50:                
-                if block_center[0] <= 0 or block_center[1] >= 100:    
-                    print("--------------------- start a block ---------------------------")                  
-                    self.auto_pick(target_pos=block_center,block_ori = block_orientation)
-                    move_time,ac_time = self.calMoveTime([0,0,0,0,0])
-                    self.rxarm.arm.set_joint_positions([0,0,0,0,0],
-                                       moving_time = move_time, 
-                                       accel_time = ac_time,
-                                       blocking = True)
-                    #self.rxarm.set_positions([0,0,0,0,0])
-                    #self.initialize_rxarm(task=True)
-                    time.sleep(2)
-                    print("Reach Middle Point")
-                    time.sleep(0.1)
-                    self.auto_place(target_pos=[100,big_y,10],target_orientation = np.pi/2)
-                    big_y += 50
+            if block_center[2] < 50: 
+                print("--------------------- start a block ---------------------------")
+                # Move small blocks in right plane to left plane
+                if block.side <= 25:
+                    if block_center[0] >= 0 or block_center[1] >= 0:
+                        print("=========== Small ",block_center," =============")
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                        time.sleep(1)
+                        self.initialize_rxarm(task=True)
+                        time.sleep(2)
+                        print("Reach Middle Point")
+                        time.sleep(0.1)
+                        
+                        # compute the place position
+                        if small_counter % 2 ==0:
+                            small_y = -100
+                        else:
+                            small_x -= 50
+                            small_y = -50
+
+                        self.auto_place(target_pos=[small_x,small_y,0],target_orientation = 0)
+                        small_counter += 1
+                # Move big blocks in left plane to right plane
+                elif block.side >= 35:
+                    if block_center[0] <= 0 or block_center[1] >= 0:
+                        print("=========== Big ",block_center," =============")
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                        time.sleep(1)
+                        self.initialize_rxarm(task=True)
+                        time.sleep(2)
+                        print("Reach Middle Point")
+                        time.sleep(0.1)
+
+                        # compute the place position
+                        if big_counter % 2 ==0:
+                            big_y = -100
+                        else:
+                            big_x += 50
+                            big_y = -50
+
+                        self.auto_place(target_pos=[big_x,big_y,0],target_orientation = 0)
+                        big_counter +=1
             time.sleep(0.5)
             self.initialize_rxarm()
             time.sleep(1)
-            print("--------------------- end a block ---------------------------") 
+            print("--------------------- end a block ---------------------------")
             # self.safe_pos()
-        print("Pick 'n sort finished")
+        print("##################### Pick 'n sort finished #####################")    
+
+
+    #     # Event 1:Pick'n sort!
+    # def pick_n_sort(self):
+    #     self.current_state = "pick_n_sort"
+    #     self.next_state = "idle"
+    #     # Detect blocks in the plane
+    #     depth_img = self.camera.depth_correction(self.camera.DepthFrameRaw)
+    #     self.camera.blocks = new_detectBlocksInDepthImage(depth_img, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
+    #     while self.camera.blocks == None:
+    #         print("There is no blocks in the workspace!!")
+    #         time.sleep(1)
+
+    #     # Initialize place positions - x coordinates
+    #     big_y = -100
+    #     self.initialize_rxarm()
+
+    #     for block in self.camera.blocks:
+    #         block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+    #         # print(block_center,block.side)
+    #         if block_center[2] < 50:                
+    #             if block_center[0] <= 0 or block_center[1] >= 100:    
+    #                 print("--------------------- start a block ---------------------------")                  
+    #                 self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+    #                 move_time,ac_time = self.calMoveTime([0,0,0,0,0])
+    #                 self.rxarm.arm.set_joint_positions([0,0,0,0,0],
+    #                                    moving_time = move_time, 
+    #                                    accel_time = ac_time,
+    #                                    blocking = True)
+    #                 #self.rxarm.set_positions([0,0,0,0,0])
+    #                 #self.initialize_rxarm(task=True)
+    #                 time.sleep(2)
+    #                 print("Reach Middle Point")
+    #                 time.sleep(0.1)
+    #                 self.auto_place(target_pos=[100,big_y,10],target_orientation = np.pi/2)
+    #                 big_y += 50
+    #         time.sleep(0.5)
+    #         self.initialize_rxarm()
+    #         time.sleep(1)
+    #         print("--------------------- end a block ---------------------------") 
+    #         # self.safe_pos()
+    #     print("Pick 'n sort finished")
 
 
     # Event 2:Pick'n stack!
