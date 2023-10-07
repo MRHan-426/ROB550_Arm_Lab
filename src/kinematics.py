@@ -289,17 +289,17 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
         print("[IK ERROR] theta1 is: ", theta1)
         return False, [0, 0, 0, 0, 0]
     
-    if theta2 >= np.deg2rad(120) or theta2 <= -np.deg2rad(120):
+    if theta2 >= np.deg2rad(113) or theta2 <= -np.deg2rad(108):
         print("[IK ERROR] Can't move to target angles")
         print("[IK ERROR] theta2 is: ", theta2)
         return False, [0, 0, 0, 0, 0]
 
-    if theta3 >= np.deg2rad(120) or theta3 <= -np.deg2rad(120):
+    if theta3 >= np.deg2rad(93) or theta3 <= -np.deg2rad(108):
         print("[IK ERROR] Can't move to target angles")
         print("[IK ERROR] theta3 is: ", theta3)
         return False, [0, 0, 0, 0, 0]
 
-    if theta4 >= np.deg2rad(120) or theta4 <= -np.deg2rad(120):
+    if theta4 >= np.deg2rad(123) or theta4 <= -np.deg2rad(100):
         print("[IK ERROR] Can't move to target angles")
         print("[IK ERROR] theta4 is: ", theta4)
         return False, [0, 0, 0, 0, 0]

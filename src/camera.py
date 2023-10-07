@@ -10,6 +10,8 @@ from rclpy.executors import SingleThreadedExecutor, MultiThreadedExecutor
 
 import cv2
 import time
+from datetime import datetime
+
 import numpy as np
 from PyQt5.QtGui import QImage
 from PyQt5.QtCore import QThread, pyqtSignal, QTimer
@@ -53,6 +55,7 @@ class Camera():
         self.tagsCenter = []
         self.tagsNotChange = []
         self.boundary = []
+        self.transformation_matrix = np.zeros((3,3))
 
         # mouse clicks & calibration variables
         self.cameraCalibrated = False
@@ -69,9 +72,8 @@ class Camera():
         self.grid_y_points = np.arange(-175, 525, 50)
         self.grid_points = np.array(np.meshgrid(self.grid_x_points, self.grid_y_points))
         self.tag_detections = np.array([])
-        self.tag_locations_3D = [[-250, -25, 0],[250, -25, 0],[250, 275, 0],[-250, 275, 0], [-250,125,150], [350,25,150]]
+        self.tag_locations_3D = [[-250, -25, 0],[250, -25, 0],[250, 275, 0],[-250, 275, 0], [-425,-100,150], [425,400,150]]
         self.tag_locations_2D = [[400, 550], [900, 550], [900, 250], [400, 250]]
-        self.transformation_matrix = np.zeros((3,3))
 
         """ block info """
         self.detect_blocks = False
@@ -255,18 +257,38 @@ class Camera():
             print(image_points.shape)
             return None
         elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
-            self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
-            self.boundary = []
-            self.boundary.append(self.inv_affline_transformation([[200, 50],[200, 700],[1100, 700],[1100, 50]]))
-                
-            self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]))
+            is_empty = np.all(self.transformation_matrix == 0)
+            if is_empty:
+                self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
+                print("===========================================")
+                print("Transformation matrix:")
+                print(self.transformation_matrix)
+                print("===========================================")
+            if self.cameraCalibrated == True and self.boundary == []:
+                self.boundary.append(self.inv_affline_transformation([[200, 50],[200, 700],[1100, 700],[1100, 50]]))
+                self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]))
+                print("===========================================")
+                print("boundary list:")
+                print(self.boundary)
+                print("===========================================")
 
             if self.detect_blocks == True:
                 depth_img = self.depth_correction(self.DepthFrameRaw)
+                
+                # current_time = datetime.now()
+                # depth_raw_file_name = "../data/depth_raw/depth_raw" + str(current_time) + ".png"
+                # depth_modified_file_name = "../data/depth_modified/depth_modified" + str(current_time) + ".png"
+                # rgb_img_file_name = "../data/rgb/rgb_img" + str(current_time) + ".png"
+                
+                # cv2.imwrite(depth_raw_file_name, self.DepthFrameRaw)
+                # cv2.imwrite(depth_modified_file_name, depth_img)
+                # cv2.imwrite(rgb_img_file_name, rgb_img)
+                # modified_rgb = cv2.warpPerspective(rgb_img, self.transformation_matrix, (rgb_img.shape[1], rgb_img.shape[0]))
+                # rgb_modified_file_name = "../data/rgb_modified" + str(current_time) + ".png"
+                # cv2.imwrite(rgb_modified_file_name, modified_rgb)
+
                 self.blocks = new_detectBlocksInDepthImage(depth_img, rgb_img, boundary =self.boundary)
-
                 output_image = drawblock(self.blocks, rgb_img, boundary=None, new= True)
-
                 modified_image = cv2.warpPerspective(output_image, self.transformation_matrix, (output_image.shape[1], output_image.shape[0]))
                 # cv2.rectangle(modified_image, (200, 50), (1100, 700), 255, cv2.FILLED)
                 # cv2.rectangle(modified_image, (570, 365),(735, 700), 0, cv2.FILLED)
@@ -542,7 +564,7 @@ class VideoThread(QThread):
                 depth_frame = self.camera.convertQtDepthFrame()
                 tag_frame = self.camera.convertQtTagImageFrame()
                 # this function is for check point2
-                self.camera.projectGridInRGBImage()
+                # self.camera.projectGridInRGBImage()
                 self.camera.birdEyesViewInGridFrame()
                 grid_frame = self.camera.convertQtGridFrame()
                 if ((rgb_frame != None) & (depth_frame != None)):
