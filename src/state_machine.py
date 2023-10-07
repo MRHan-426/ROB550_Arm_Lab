@@ -800,13 +800,59 @@ class StateMachine():
         self.next_state = "idle"
 
 
+    # # Event 1:Pick'n sort!
+    # def pick_n_sort(self):
+    #     self.current_state = "pick_n_sort"
+    #     self.next_state = "idle"
+    #     # Detect blocks in the plane
+    # self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
+
+    #     while self.camera.blocks == None:
+    #         print("There is no blocks in the workspace!!")
+    #         time.sleep(1)
+
+    #     # Initialize place positions - x coordinates
+    #     small_x , big_x = -150,150
+    #     self.initialize_rxarm()
+
+    #     for block in self.camera.blocks:
+    #         block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+    #         # print(block_center,block.side)
+    #         if block_center[2] < 50: 
+    #             # Move small blocks in right plane to left plane
+    #             if block.side <= 25:
+    #                 if block_center[0] >= 0 or block_center[1] >= 0:
+    #                     print("=========== Small")
+    #                     print(block_center)
+    #                     print("===========")
+    #                     self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+    #                     time.sleep(1)
+    #                     self.auto_place(target_pos=[small_x,-100,0],target_orientation = 0)
+    #                     small_x -= 60
+    #             # Move big blocks in left plane to right plane
+    #             elif block.side >= 35:
+    #                 if block_center[0] <= 0 or block_center[1] >= 0:
+    #                     print("+++++++++++ Big")
+    #                     print(block_center)
+    #                     print("+++++++++++")
+    #                     self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+    #                     time.sleep(1)
+    #                     self.auto_place(target_pos=[big_x,-100,0],target_orientation = 0)
+    #                     big_x += 60
+    #         time.sleep(0.5)
+    #         self.initialize_rxarm()
+    #         time.sleep(1)
+    #         # self.safe_pos()
+    #     print("Pick 'n sort finished")    
+
+
     # Event 1:Pick'n sort!
     def pick_n_sort(self):
         self.current_state = "pick_n_sort"
         self.next_state = "idle"
         # Detect blocks in the plane
-        depth_img = self.camera.depth_correction(self.camera.DepthFrameRaw)
-        self.camera.blocks = new_detectBlocksInDepthImage(depth_img, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
+        self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
+
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
             time.sleep(1)
@@ -917,9 +963,7 @@ class StateMachine():
         self.current_state = "pick_n_stack"
         self.next_state = "idle"
         # Detect blocks in the plane
-        depth_img = self.camera.depth_correction(self.camera.DepthFrameRaw)
-
-        self.camera.blocks = new_detectBlocksInDepthImage(depth_img, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
+        self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
 
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
@@ -964,9 +1008,7 @@ class StateMachine():
         self.current_state = "line_em_up"
         self.next_state = "idle"
         # Detect blocks in the plane
-        depth_img = self.camera.depth_correction(self.camera.DepthFrameRaw)
-        
-        self.camera.blocks = new_detectBlocksInDepthImage(depth_img, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
+        self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
 
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
@@ -1018,9 +1060,7 @@ class StateMachine():
         self.current_state = "stack_em_high"
         self.next_state = "idle"
         # Detect blocks in the plane
-        depth_img = self.camera.depth_correction(self.camera.DepthFrameRaw)
-
-        self.camera.blocks = new_detectBlocksInDepthImage(depth_img, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
+        self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
 
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
@@ -1070,9 +1110,8 @@ class StateMachine():
         self.current_state = "to_the_sky"
         self.next_state = "idle"
         # Detect blocks in the plane
-        depth_img = self.camera.depth_correction(self.camera.DepthFrameRaw)
-
-        self.camera.blocks = new_detectBlocksInDepthImage(depth_img, self.camera.VideoFrame.copy(),boundary=self.camera.boundary)
+        self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
+  
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
             time.sleep(1)
