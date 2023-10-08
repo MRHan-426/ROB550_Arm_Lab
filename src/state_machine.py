@@ -904,6 +904,10 @@ class StateMachine():
             # print("T_DH is: ",T_DH)
             pos = self.compute_ee_world_pos()
 
+        self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
+                              accel_time=0.5,
+                              blocking=True)
+
         if can_reach2:
             print("move to point2")
             # joint_angles2 = kinematics.Joint_Pos_Compensation(joint_angles2)
@@ -981,20 +985,27 @@ class StateMachine():
 
 
     # Event 1:Pick'n sort!
-    def pick_n_sort(self):
-        self.current_state = "pick_n_sort"
-        self.next_state = "idle"
-        print("##################### Pick 'n sort Start #####################")
+    def pick_n_sort(self,istask3 = False):
+        if not istask3:
+            self.current_state = "pick_n_sort"
+            self.next_state = "idle"
+            print("##################### Pick 'n sort Start #####################")
                
         block_number_counter = 1
         small_counter,big_counter = 0,0
-        small_x , big_x = -150,150
+        small_x , big_x = -160,160
         small_y,big_y = -100,-100
+
+        if istask3:
+            block_offset = 80
+        else:
+            block_offset = 70
 
         # 1st time deal with 2 floor blocks, 2nd time deal with general blocks
         while True:
             # Detect blocks in the plane
             self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
+            time.sleep(1)
 
             while self.camera.blocks == None:
                 print("There is no blocks in the workspace!!")
@@ -1038,12 +1049,14 @@ class StateMachine():
 
                                 self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False)
                                 time.sleep(0.2)
-                            
-                                if small_counter % 2 ==0:
-                                    small_y = -100
+
+                                 # compute the place position             
+                                if small_counter % 2 == 0:
+                                        small_y = -100
+                                        if small_counter != 0:
+                                            small_x -= block_offset
                                 else:
-                                    small_x -= 60
-                                    small_y = -60
+                                    small_y = -100 + block_offset
 
                                 self.auto_place(target_pos=[small_x,small_y,0],target_orientation = 0,isbig=False,save_time=True)
                                 small_counter += 1
@@ -1055,19 +1068,14 @@ class StateMachine():
                                 
                                 self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True)
                                 time.sleep(0.2)
-                                # self.initialize_rxarm(task=True)
-
-                                # if do_initialization:
-                                #     self.initialize_rxarm(task=True)
-                                #     time.sleep(0.2)
-                                #     print("Reach Middle Point")
 
                                 # compute the place position
-                                if big_counter % 2 ==0:
+                                if big_counter % 2 == 0:
                                     big_y = -100
+                                    if big_counter !=0:
+                                        big_x += block_offset
                                 else:
-                                    big_x += 60
-                                    big_y = -60
+                                    big_y = -100 + block_offset
 
                                 self.auto_place(target_pos=[big_x,big_y,0],target_orientation = 0,isbig = True,save_time=True)
                                 big_counter +=1
@@ -1081,80 +1089,116 @@ class StateMachine():
                     print("This is April Tag!")
             self.initialize_rxarm()
             time.sleep(0.5)
+            self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
+                              accel_time=0.5,
+                              blocking=True)
         print("##################### Pick 'n sort finished #####################")    
-
 
 
     # Event 2:Pick'n stack!
     def pick_n_stack(self):
         self.current_state = "pick_n_stack"
         self.next_state = "idle"
-        # Detect blocks in the plane
-        self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
+        print("##################### Pick 'n stack Start #####################")
+               
+        block_number_counter = 1
+        small_counter,big_counter = 0,0
+        small_x , big_x = -150,150
+        small_y,big_y = -100,-100
+        small_z,big_z = 0,0
 
-        while self.camera.blocks == None:
-            print("There is no blocks in the workspace!!")
+        # 1st time deal with 2 floor blocks, 2nd time deal with general blocks
+        while True:
+            # Detect blocks in the plane
+            self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
             time.sleep(1)
 
-        # Initialize place positions - z coordinates
-        small_z , big_z = 0,0
-        for block in self.camera.blocks:
-            block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
-           
-            # if block is far, initialize it
-            do_initialization = False
-            xy_distance = np.sqrt(np.square(block_center[0])+np.square(block_center[1]))
-            print("Block distance to origin is: ",xy_distance)
-            if xy_distance > 320:
-                do_initialization = True
+            while self.camera.blocks == None:
+                print("There is no blocks in the workspace!!")
+                time.sleep(1)
+            
+            all_block_in_neg_plane = True
+            for block in self.camera.blocks:
+                block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+                if block_center[1] > 0:
+                    all_block_in_neg_plane = False
+            if all_block_in_neg_plane:
+                break
 
-            # Filter out possible mis-ditection
-            if block_center[2] < 100: 
-                # print(block_center)
-                if block_center [1] >= 0: 
-                    # Stack small blocks on the Apriltag in the left negative plane
-                    if block.side <= 25:
-                        print("=========== Small")
-                        print(block_center)
-                        print("=================")
+            # Initialize place positions - x coordinates           
+            self.initialize_rxarm()
+            time.sleep(2)
+
+            for block in self.camera.blocks:
+                block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+                
+                # print(block_center,block.side)
+                if block_center[2] < 150: 
+                    print("--------------------- start a block:No.",block_number_counter,"---------------------------")
+                    print("block_depth", block_center[2])
+
+                    # Move small blocks in right plane to left planet
+                    if block_center[2] > 65:
+                        # if it's stack 2 high, place the top one first
+                        print("=========== Stack Two ",block_center," =============")
                         self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False)
                         time.sleep(0.2)
-                        self.initialize_rxarm(task=True)
-                        # if do_initialization:
-                        #     self.initialize_rxarm(task=True)
-                        #     time.sleep(0.2)
-                        #     print("Reach Middle Point")
+                        current_position = self.compute_ee_world_pos()
+                        self.auto_change_position(current_pos=current_position)
+                        print("=========== Stack Two Comptele =============")
+                    
+                    else:
+                        # if it's stack 1 high, pick and place normally
+                        if block.side <= 25:
+                            if block_center[0] >= 0 or block_center[1] >= 0:
+                                print("=========== Small ",block_center," =============")
 
-                        self.auto_place(target_pos=[-250,-25,small_z],target_orientation = 0,isbig=False)
-                        small_z += 20
-                    # Stack big blocks on the Apriltag in the right negative plane
-                    elif block.side >= 35:
-                        print("+++++++++++ Big")
-                        print(block_center)
-                        print("+++++++++++++++")
-                        self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True)
-                        time.sleep(0.2)
-                        self.initialize_rxarm(task=True)
+                                self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False)
+                                time.sleep(0.2)
 
-                        # if do_initialization:
-                        #     self.initialize_rxarm(task=True)
-                        #     time.sleep(0.2)
-                        #     print("Reach Middle Point")
+                                self.auto_place(target_pos=[small_x,small_y,small_z],target_orientation = 0,isbig=False,save_time=True)
+                                small_counter += 1
+                                block_number_counter += 1
+                                small_z += 20
+                        # Move big blocks in left plane to right plane
+                        elif block.side >= 35:
+                            if block_center[0] <= 0 or block_center[1] >= 0:
+                                print("=========== Big ",block_center," =============")
+                                
+                                self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True)
+                                time.sleep(0.2)
 
-                        self.auto_place(target_pos=[250,25,big_z],target_orientation = 0,isbig=True)
-                        big_z += 38
-                self.initialize_rxarm()
-                time.sleep(2)
-            else:
-                print("This is April Tag!")
-        print("Pick'n stack finished")
-        pass
+                                self.auto_place(target_pos=[big_x,big_y,big_z],target_orientation = 0,isbig = True,save_time=True)
+                                big_counter +=1
+                                block_number_counter += 1
+                                big_z += 38
+                    time.sleep(0.2)
+                    # self.initialize_rxarm()
+                    # time.sleep(0.5)
+                    print("--------------------- end a block ---------------------------")
+                    # self.safe_pos()
+                else:
+                    print("This is April Tag!")
+            self.initialize_rxarm()
+            time.sleep(0.5)
+            self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
+                              accel_time=0.5,
+                              blocking=True)
+        print("##################### Pick 'n sort finished #####################")  
 
 
     # Event 3:Line 'em up!
     def line_em_up(self):
+        """!
+        @brief      task3
+        """
         self.current_state = "line_em_up"
         self.next_state = "idle"
+        print("##################### Line 'em up Start #####################")
+
+        self.pick_n_sort(istask3=True)
+        print("----------------------Clear Stage Complete")
+
         # Detect blocks in the plane
         self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
 
@@ -1169,44 +1213,49 @@ class StateMachine():
         blocks = self.camera.blocks
         sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
 
-        small_x , big_x = -400, 150
+        small_x, big_x = -150, -150
+        small_y, big_y = 200, 275
+        block_counter,small_block_counter,big_block_counter = 1,1,1
         for block in sorted_blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
-            # print("00000000000000000000000000000")
-            # print(block_center,block.side)
-            # print("00000000000000000000000000000")
 
             # Filter out possible mis-ditection
-            if block_center[2] < 50: 
+            if block_center[2] < 60: 
                 # print(block_center)
-                # Assume all non-sorted blocks are in the positive plane:
-                if block_center [1] >= 0: 
-                    # Line small blocks in color order in the left negative plane
-                    if block.side <= 25:
-                        print("=========== Small")
-                        print(block_center,block.color)
-                        print("=================")
-                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
-                        self.auto_place(target_pos=[small_x,-125,5],target_orientation = 0)
-                        small_x += 50
-                    # Line big blocks in color order in the right negative plane
-                    elif block.side >= 35:
-                        print("+++++++++++ Big")
-                        print(block_center,block.color)
-                        print("+++++++++++++++")
-                        self.auto_pick(target_pos=block_center,block_ori = block_orientation)
-                        self.auto_place(target_pos=[big_x,-125,5],target_orientation = 0)
-                        big_x += 50
-            self.initialize_rxarm()
-            time.sleep(2)
+                # Assume all non-sorted blocks are in the positive plane:    
+                print("--------------------- start a block:No.",block_counter,"---------------------------")
+                # Line small blocks in color order in the left negative plane
+                if block.side <= 25:
+                    print("================ Small Block No.",small_block_counter," ",
+                          block.color,"=========================")
+                    self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                    self.auto_place(target_pos=[small_x,small_y,5],target_orientation = 0)
+                    small_x += 50
+                    small_block_counter += 1
+                # Line big blocks in color order in the right negative plane
+                elif block.side >= 35:
+                    print("================ Big Block No.",big_block_counter," ",
+                          block.color,"=========================")
+                    self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+                    self.auto_place(target_pos=[big_x,big_y,5],target_orientation = 0)
+                    big_x += 50
+                    big_block_counter += 1
+            print("--------------------- start a block:No.",block_counter,"---------------------------")
+            time.sleep(0.2)
 
-        print("Line 'em up finished")
+        self.initialize_rxarm()
+        time.sleep(0.5)
+        self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
+                            accel_time=0.5,
+                            blocking=True)
+        print("##################### Line 'em up Complete #####################")
         pass
 
     # Event 4:Stack 'em high!
     def stack_em_high(self):
         self.current_state = "stack_em_high"
         self.next_state = "idle"
+        print("##################### Stack 'em high Start #####################")
         # Detect blocks in the plane
         self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
 
@@ -1221,7 +1270,8 @@ class StateMachine():
         blocks = self.camera.blocks
         sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
 
-        small_z, big_z = 0
+        small_z, big_z = 0, 0
+        block_counter,small_block_counter,big_block_counter = 1,1,1
         for block in sorted_blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
             # print("00000000000000000000000000000")
@@ -1234,23 +1284,26 @@ class StateMachine():
                 if block_center [1] >= 0: 
                     # Line small blocks in color order in the left negative plane
                     if block.side <= 25:
-                        print("=========== Small")
-                        print(block_center,block.color)
-                        print("=================")
+                        print("================ Small Block No.",small_block_counter," ",
+                          block.color,"=========================")
                         self.auto_pick(target_pos=block_center,block_ori = block_orientation)
-                        self.auto_place(target_pos=[250,-125,small_z],target_orientation = 0)
+                        self.auto_place(target_pos=[-250,-125,small_z],target_orientation = 0)
                         small_z += 38
                     # Line big blocks in color order in the right negative plane
                     elif block.side >= 35:
-                        print("+++++++++++ Big")
-                        print(block_center,block.color)
-                        print("+++++++++++++++")
+                        print("================ Big Block No.",big_block_counter," ",
+                          block.color,"=========================")
                         self.auto_pick(target_pos=block_center,block_ori = block_orientation)
                         self.auto_place(target_pos=[250,-125,big_z],target_orientation = 0)
                         big_z += 38
             
-            time.sleep(2)
-        print("Stack 'em high finished")
+            time.sleep(1)
+        self.initialize_rxarm()
+        time.sleep(0.5)
+        self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
+                            accel_time=0.5,
+                            blocking=True)
+        print("##################### Stack 'em high Complete #####################")
         pass
     
     # Event 5:To the sky!
@@ -1271,8 +1324,14 @@ class StateMachine():
             self.auto_place(target_pos=[250,175,big_z],target_orientation = 0)
             big_z += 38
             self.initialize_rxarm()
-            time.sleep(2)
-        print("To the sky finished")
+            time.sleep(1)
+
+        self.initialize_rxarm()
+        time.sleep(0.5)
+        self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
+                            accel_time=0.5,
+                            blocking=True)
+        print("##################### To the sky finished Complete #####################")
         pass
 
 
