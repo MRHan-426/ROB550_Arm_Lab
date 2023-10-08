@@ -806,11 +806,11 @@ class StateMachine():
         if xy_distance > 250:
             target_pos[0] = target_pos[0]*(7.0/8.0)
             target_pos[1] = target_pos[1]*(7.0/8.0)
-            target_pos[2] = 120
+            target_pos[2] = 50
         else:
             target_pos[0] = target_pos[0]*(8.0/7.0)
             target_pos[1] = target_pos[1]*(8.0/7.0)
-            target_pos[2] = 120
+            target_pos[2] = 60
         can_reach,target_joint_angles = self.loose_pose_compute(target_pos,block_ori=0)
 
         if can_reach:
@@ -985,23 +985,32 @@ class StateMachine():
         self.current_state = "pick_n_sort"
         self.next_state = "idle"
         print("##################### Pick 'n sort Start #####################")
-        
-        # 1st time deal with 2 floor blocks, 2nd time deal with general blocks
+               
         block_number_counter = 1
         small_counter,big_counter = 0,0
-        for i in range(2):
+        small_x , big_x = -150,150
+        small_y,big_y = -100,-100
+
+        # 1st time deal with 2 floor blocks, 2nd time deal with general blocks
+        while True:
             # Detect blocks in the plane
             self.camera.blocks = detectBlocksInRGBImage(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
 
             while self.camera.blocks == None:
                 print("There is no blocks in the workspace!!")
                 time.sleep(1)
+            
+            all_block_in_neg_plane = True
+            for block in self.camera.blocks:
+                block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+                if block_center[1] > 0:
+                    all_block_in_neg_plane = False
+            if all_block_in_neg_plane:
+                break
 
-            # Initialize place positions - x coordinates
-            small_x , big_x = -150,150
-            small_y,big_y = -100,-100           
+            # Initialize place positions - x coordinates           
             self.initialize_rxarm()
-            time.sleep(4)
+            time.sleep(2)
 
             for block in self.camera.blocks:
                 block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
@@ -1033,8 +1042,8 @@ class StateMachine():
                                 if small_counter % 2 ==0:
                                     small_y = -100
                                 else:
-                                    small_x -= 50
-                                    small_y = -50
+                                    small_x -= 60
+                                    small_y = -60
 
                                 self.auto_place(target_pos=[small_x,small_y,0],target_orientation = 0,isbig=False,save_time=True)
                                 small_counter += 1
@@ -1057,8 +1066,8 @@ class StateMachine():
                                 if big_counter % 2 ==0:
                                     big_y = -100
                                 else:
-                                    big_x += 50
-                                    big_y = -50
+                                    big_x += 60
+                                    big_y = -60
 
                                 self.auto_place(target_pos=[big_x,big_y,0],target_orientation = 0,isbig = True,save_time=True)
                                 big_counter +=1
