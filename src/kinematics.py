@@ -315,7 +315,7 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
     print("IK_Kinematics: Success")
 
     # Compensation for joint1 (don't know why)
-    theta1 = theta1 - np.pi/180
+    theta1 = theta1 - np.pi/90
     return True, [theta1,theta2,theta3,theta4,theta5]
     pass
 
