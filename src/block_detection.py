@@ -1,38 +1,27 @@
-import numpy as np
 import cv2
+import numpy as np
+from sklearn.cluster import KMeans
+from collections import Counter
 from dataclasses import dataclass
 from scipy import stats
 import pickle
 import warnings
 warnings.filterwarnings("ignore", message="Trying to unpickle estimator SVC from version", category=UserWarning)
 
+
 font = cv2.FONT_HERSHEY_SIMPLEX
 
 
-INTRINISC_MATRIX = np.array([
-                    [918.2490195188435, 0.0, 636.4533753942957],
-                    [0.0, 912.0611927215057, 365.23840749139805],
-                    [0.0, 0.0, 1.0]])
-
-
-EXTRINSIC_MATRIX = np.array([
-                    [ 9.99581091e-01, -2.82705457e-02, -6.19823419e-03, 3.45427247e+01],
-                    [-2.62323435e-02, -9.75452033e-01, 2.18643994e-01, 1.32930439e+02],
-                    [-1.22272652e-02, -2.18389808e-01, -9.75785010e-01, 1.04360917e+03],
-                    [ 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
-                    ])
-
-
-
-
 class block:
-    def __init__(self, center, depth, contour, orientation, color = None, side = None):
+    def __init__(self, center, depth, orientation, contour, color, type, stack = False):
         self.center = center # height, width
         self.depth = depth
-        self.color = color
-        self.side = side
-        self.contour = contour
         self.orientation = np.deg2rad(orientation)
+        self.contour = contour
+        self.color = color
+        self.type = type
+        self.stack = stack
+
 
     # detect whether a point is in a square
     def inArea(self, point):
@@ -44,389 +33,11 @@ class block:
 
         if np.square(height - self.center[0]) + np.square(width - self.center[1]) < 20 * 20:
             return True
-       
         return False
-
-
-        # # Calculate vectors from point to each vertex of the square
-        # vectors = []
-        # for vertex in self.vertices:
-        #     vx, vy = vertex
-        #     vectors.append((vx - x, vy - y))
-
-        # # Calculate the cross product of consecutive vectors
-        # cross_products = []
-        # for i in range(len(vectors)):
-        #     x1, y1 = vectors[i]
-        #     x2, y2 = vectors[(i + 1) % len(vectors)]
-        #     cross_products.append(x1 * y2 - x2 * y1)
-
-        # # If all cross products have the same sign, the point is inside the square
-        # return all(cp >= 0 for cp in cross_products) or all(cp <= 0 for cp in cross_products)
-   
-
-    def colordetection(self,img):
-        detected_color = detectBlocksColorInRGBImage(img,tuple(self.center))
-        return detected_color
-        # find 5 points to be detected
-        # x,y = self.center
-        # points = []
-        # points.append(self.center)
-        # for vertex in self.vertices:
-        #     vx, vy = vertex
-        #     vector = (vx - x, vy - y)
-        #     points.append((int(x + vector[0]/2), int(y + vector[1]/2)))
-       
-        # color_counts = {'red':0,'blue':0,'yellow':0,'green':0,'orange':0,'purple':0,'pink':0,'unknown':0}
-        # for point in points:
-        #     detected_color = detectBlocksColorInRGBImage(img,tuple(point))
-        #     color_counts[detected_color] += 1
-        # max_color = max(color_counts, key=color_counts.get)
-        # return max_color
-
-
-
-def detectBlocksColorInRGBImage(img, position: tuple) -> str:
-    """!
-    @brief      Detect blocks from rgb
-   
-    @param      position x, y
-               
-                return image
-
-
-    """
-    # cv2.imwrite("temp.jpg", img)
-    # img = cv2.imread("temp.jpg")
-
-
-    img_hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-
-
-    masks = {
-            "red": (
-                cv2.inRange(img_hsv, np.array([0, 43, 46]), np.array([20, 255, 255])) +
-                cv2.inRange(img_hsv, np.array([156, 43, 46]), np.array([190, 255, 255]))
-                    ),
-            "orange":cv2.inRange(img_hsv, np.array([11,43,46]), np.array([25, 255, 255])),
-            "yellow":cv2.inRange(img_hsv, np.array([26,43,46]), np.array([34, 255, 255])),
-            # "orange": cv2.medianBlur(cv2.inRange(img_hsv, np.array([11, 43, 46]), np.array([25, 255, 255])), 7),
-            # "yellow": cv2.medianBlur(cv2.inRange(img_hsv, np.array([26, 43, 46]), np.array([34, 255, 255])), 7),
-            "green": cv2.inRange(img_hsv, np.array([60, 43, 46]), np.array([95, 255, 255])),
-            "blue": cv2.inRange(img_hsv, np.array([100, 43, 46]), np.array([105, 255, 255])),
-            "purple":cv2.inRange(img_hsv, np.array([106,43,46]), np.array([150, 255, 255])),
-            # "purple": cv2.medianBlur(cv2.inRange(img_hsv, np.array([106, 43, 46]), np.array([150, 255, 255])), 7),
-            # "pink": cv2.medianBlur(cv2.inRange(img_hsv, np.array([165, 43, 46]), np.array([255, 255, 255])), 7)
-        }
-
-
-    detected_color = "unknown"
-    for color, mask in masks.items():
-        if mask[position[0], position[1]] > 0:
-            detected_color = color
-            break
-
-
-    # debug
-    if __name__ == '__main__':
-        cv2.circle(img, position, 5, (0, 0, 255), -1) # Red circle of radius 5
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        font_scale = 0.5
-        font_thickness = 1
-        text_position = (position[0] + 10, position[1])
-        cv2.putText(img, detected_color, text_position, font, font_scale, (0, 0, 255), font_thickness)
-        cv2.imshow('Image', img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-
-
-    return detected_color
-
-
-
-
-def depth_correction(depth_img, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_matrix = EXTRINSIC_MATRIX):
-    """!
-    @brief      Use affline transformation to modify depth image
-
-
-    @param      depth: raw depth image (720, 1280, 1)  
-                return: gray image (720, 1280, 1)        
-    """
-
-    y = np.arange(depth_img.shape[0])
-    x = np.arange(depth_img.shape[1])
-    mesh_x, mesh_y = np.meshgrid(x, y)
-    Z = depth_img.astype(np.float32)
-    X = (mesh_x - intrinsic_matrix[0, 2]) * Z / intrinsic_matrix[0, 0]
-    Y = (mesh_y - intrinsic_matrix[1, 2]) * Z / intrinsic_matrix[1, 1]
-
-
-    homogeneous_coordinates = np.stack((X, Y, Z, np.ones_like(Z)), axis=-1)
-    P_c = homogeneous_coordinates.reshape(-1, 4).T
-    P_w = np.linalg.inv(extrinsic_matrix) @ P_c
-    points_3d = P_w.T[:, 2].reshape(depth_img.shape[0], depth_img.shape[1], 1)
-
-
-    return points_3d
-
-
-
-
-def detectBlocksInDepthImage(depth_img, intrinsic_matrix = INTRINISC_MATRIX, extrinsic_matrix = EXTRINSIC_MATRIX):
-    """!
-    @brief      Detect blocks from depth
-
-
-                Implement a blob detector to find blocks in the depth image
-
-
-    @param      depth_img: 720x1280x1 raw depth image
-                intrinsic and extrinsic of camera
-               
-                return: a list of blocks
-    """
-    if isinstance(depth_img, str):
-        depth_img = cv2.imread(depth_img, cv2.IMREAD_UNCHANGED)
-       
-    depth_data = depth_img
-
-
-    #  using depth image to detect contour
-    lower = 10
-    upper = 40
-    mask = np.zeros_like(depth_data, dtype=np.uint8)
-    cv2.rectangle(mask, (40,40),(1280,720), 255, cv2.FILLED)
-    # cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
-    thresh = cv2.bitwise_and(cv2.inRange(depth_data, lower, upper), mask)
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-
-    blocks = []
-
-
-    for contour in contours:
-        epsilon = 0.08 * cv2.arcLength(contour, True)
-        approx = cv2.approxPolyDP(contour, epsilon, True)
-        # print("approx.shape is: ", approx.shape)
-        if len(approx) == 4:
-            point1 = [approx[0,0,0],approx[0,0,1]]
-            point2 = [approx[2,0,0],approx[2,0,1]]
-            diagonal_length = np.sqrt(np.square(point1[0]-point2[0])+np.square(point1[1]-point2[1]))
-            if diagonal_length > 20 and diagonal_length < 60:            
-                orientation = cv2.minAreaRect(contour)[2]
-                M = cv2.moments(contour)
-                cy = 1
-                cx = 1
-                if M['m00'] != 0:
-                    cy = int(M['m01']/M['m00'])
-                    cx = int(M['m10']/M['m00'])
-                # drawblock([cx,cy], diagonal_length, orientation, output_img)
-
-
-                # if diagonal_length > 40:
-                    # side = 40
-                    # cv2.putText(output_img, "big block", (cx + 5, cy + 5), font, 0.4, (0,255,0), thickness=1)
-
-
-                # else:
-                    # side = 20
-                    # cv2.putText(output_img, "small block", (cx + 5, cy + 5), font, 0.4, (0,255,0), thickness=1)
-
-
-                # if diagonal_length > 40:
-                #     side = 40
-                # else:
-                #     side = 20
-
-
-                a_block = block([cy,cx] , depth_data[cy, cx], diagonal_length/np.sqrt(2), orientation)
-                blocks.append(a_block)
-
-
-                # cv2.circle(depth_data2, (cx,cy), 2, (0,255,0), -1)
-                # cv2.putText(depth_data2, str(int(orientation)), (cx, cy), font, 0.4, (0,255,0), thickness=1)
-
-
-    # block_counter = 1
-    # for a_block in blocks:
-    #     print("Block NO.", block_counter, " | side: ", a_block.side,  " | position: ", a_block.center[0],", ", a_block.center[1])
-    #     block_counter += 1
-
-
-    # debug
-    if __name__ == '__main__':
-        cv2.imshow("Image window", depth_data)
-        cv2.waitKey(0)
-        # print("block size is: ", len(blocks))
-   
-    return blocks
- 
-   
-def detectBlocksInDepthImageCanny():
-    pass
-    # # Edge Detection Using Canny
-    # cv2.imwrite("affline_depth.png", points_3d)
-    # points_3d = cv2.imread("affline_depth.png", cv2.IMREAD_GRAYSCALE)
-    # kernel_size = 3
-    # blurred_edges = cv2.GaussianBlur(points_3d,(kernel_size,kernel_size), 10)
-    # cv2.imshow("Blurred edges",blurred_edges)
-    # blurred_edges = cv2.Canny(blurred_edges,10, 25,apertureSize=3,L2gradient=True)
-   
-    # lower = -1
-    # upper = 2
-    # mask = np.zeros_like(blurred_edges, dtype=np.uint8)
-    # cv2.rectangle(mask, (250,80),(1100,720), 255, cv2.FILLED)
-    # cv2.rectangle(mask, (600,360),(730,710), 0, cv2.FILLED)
-    # cv2.rectangle(blurred_edges, (250,80),(1100,720), (255, 0, 0), 2)
-    # cv2.rectangle(blurred_edges, (600,360),(730,710), (255, 0, 0), 2)
-    # thresh = cv2.bitwise_and(cv2.inRange(blurred_edges, lower, upper), mask)
-    # contours, _ = cv2.findContours(blurred_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # cv2.drawContours(rgb_img, contours, -1, (0,255,0), thickness = -1)
-
-
-    # for contour in contours:
-    #     epsilon = 0.1 * cv2.arcLength(contour, True)
-    #     approx = cv2.approxPolyDP(contour, epsilon, True)
-    #     if len(approx) == 2:
-    #         cv2.drawContours(rgb_img, contour, -1, (0,255,255), thickness = 1)
-    #         orientation = cv2.minAreaRect(contour)[2]
-    #         M = cv2.moments(contour)
-    #         cx = 1
-    #         cy = 1
-    #         if M['m00'] != 0:
-    #             cx = int(M['m10']/M['m00'])
-    #             cy = int(M['m01']/M['m00'])
-    #         cv2.circle(rgb_img,(cx,cy),3,(0,255,0),-1)
-    #         cv2.putText(rgb_img, str(int(orientation)), (cx, cy), font, 0.5, (0,255,0), thickness=1)
-
-
-    # cv2.imshow("original edges",rgb_img)
-    # print("blurred img shape is: ", blurred_edges)
-
-
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-
-
-
-
-# draw the block on the image
-def drawblock(blocks, output_img:np.array, boundary = None, new:bool = False) -> np.array:
-    """!
-    @brief      Draw blocks for visualization
-
-
-    @param      block: information of a block
-                img: output image for visualization
-    """
-    i = 0
-    for block in blocks:
-        if not new:
-            color = block.colordetection(output_img)
-            if color == "unknown":
-                continue
-            half_side = block.side / 2
-            orientation = block.orientation
-            center = block.center[1], block.center[0]
-            cos_angle = np.cos(orientation)
-            sin_angle = np.sin(orientation)
-            cv2.putText(output_img, color, (center[0] + 15, center[1] - 15), font, 0.4, (0,255,0), thickness=1)
-
-            corner1 = (int(center[0] - half_side * cos_angle - half_side * sin_angle),
-                int(center[1] + half_side * cos_angle - half_side * sin_angle))
-            corner2 = (int(center[0] + half_side * cos_angle - half_side * sin_angle),
-                int(center[1] + half_side * cos_angle + half_side * sin_angle))
-            corner3 = (int(center[0] + half_side * cos_angle + half_side * sin_angle),
-                int(center[1] - half_side * cos_angle + half_side * sin_angle))
-            corner4 = (int(center[0] - half_side * cos_angle + half_side * sin_angle),
-                int(center[1] - half_side * cos_angle - half_side * sin_angle))
-            square_coordinates = np.array([corner1, corner2, corner3, corner4], dtype=np.int32)
-            # RGB
-            cv2.polylines(output_img, [square_coordinates], isClosed=True, color=(255, 255, 0), thickness=2)
-            cv2.circle(output_img, (center[0], center[1]), 2, (0,255,0), -1)
-
-            cv2.putText(output_img, str(int(np.rad2deg(orientation))), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
-           
-            if block.side > 30:
-                cv2.putText(output_img, "big block", (center[0] + 15, center[1] + 15), font, 0.4, (0,255,0), thickness=1)
-            else:
-                cv2.putText(output_img, "small block", (center[0] + 15, center[1] + 15), font, 0.4, (0,255,0), thickness=1)
-        else:
-            color = block.color
-            orientation = block.orientation
-            center = block.center[1], block.center[0]
-            cos_angle = np.cos(orientation)
-            sin_angle = np.sin(orientation)
-            cv2.putText(output_img, str(color), (center[0] + 15, center[1] - 15), font, 0.4, (0,255,0), thickness=1)
-            cv2.circle(output_img, (center[0], center[1]), 2, (0,255,0), -1)
-            cv2.putText(output_img, str(int(np.rad2deg(orientation))), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
-            if block.side > 30:
-                cv2.putText(output_img, "big block", (center[0] + 15, center[1] + 15), font, 0.4, (0,255,0), thickness=1)
-            else:
-                cv2.putText(output_img, "small block", (center[0] + 15, center[1] + 15), font, 0.4, (0,255,0), thickness=1)
-            cv2.drawContours(output_img, [block.contour], -1, (255,0,0), 2)
-    
-    if boundary != None:
-        cv2.fillPoly(output_img, [boundary[0]], 255)
-        cv2.fillPoly(output_img, [boundary[1]], 0)
-    cv2.imwrite("../data/result.png", output_img)
-    
-    return output_img
-
-
-def new_detectBlocksInDepthImage(depth_raw, output_img, boundary, blind_rect=None):
-    lower = -100
-    upper = 100
-
-    lab_img = cv2.cvtColor(output_img, cv2.COLOR_RGB2LAB)
-    hsv_img = cv2.cvtColor(output_img, cv2.COLOR_RGB2HSV)
-
-    depth_raw = depth_raw[:,:,0].astype('uint8')
-
-    depth_raw = cv2.medianBlur(depth_raw, 3)
-    mask = np.zeros_like(depth_raw, dtype=np.uint8)
-    pts1 = boundary[0]
-    pts2 = boundary[1]
-    cv2.fillPoly(mask, [pts1], 255)
-    cv2.fillPoly(mask, [pts2], 0)
-
-    # cv2.rectangle(mask, (0, 90), (1083, 700), 255, cv2.FILLED)
-    # cv2.rectangle(mask, (570, 400),(735, 700), 0, cv2.FILLED)
-    if blind_rect is not None:
-        cv2.rectangle(mask, blind_rect[0], blind_rect[1], 0, cv2.FILLED)
-
-    depth_seg = cv2.inRange(depth_raw, lower, upper)
-    img_depth_thr = cv2.bitwise_and(depth_seg, mask)
-    contours, _ = cv2.findContours(img_depth_thr, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
-   
-    blocks = []
-
-    for contour in contours:
-        M = cv2.moments(contour)
-        if M['m00'] < 200 or abs(M["m00"]) > 7000:
-            continue
-        
-        if M["m00"] < 850:
-            side = 20
-        else:
-            side = 40
-        cx = int(M['m10']/M['m00'])
-        cy = int(M['m01']/M['m00'])
-        cz = depth_raw[cy, cx]
-        block_ori = cv2.minAreaRect(contour)[2]
-        color = new_detectBlocksColorInRGBImage(frame_rgb=output_img, frame_lab=lab_img, frame_hsv=hsv_img, contour=contour)
-        a_block = block(center=[cy,cx] , depth=cz, contour=contour, side=side, color= color,orientation=block_ori)
-        blocks.append(a_block)
-    print("======================================================")
-    print("Block Detection done, Total: ", len(blocks))
-    print("======================================================")
-    return blocks
 
 
 def new_detectBlocksColorInRGBImage(frame_rgb, contour):
     # color range
-    frame_rgb = cv2.cvtColor(frame_rgb, cv2.COLOR_BGR2RGB)
     frame_lab = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2LAB)
     frame_hsv = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2HSV)
 
@@ -484,91 +95,204 @@ def new_detectBlocksColorInRGBImage(frame_rgb, contour):
         return "unknown"
 
 
-def detectBlocksInRGBImage(bgr_img, depth_raw, boundary):
-    bgr_img = cv2.cvtColor(bgr_img, cv2.COLOR_RGB2BGR)
-    # Step 1
-    # remove height > 100
-    lower = 900
-    upper = 1200
-    depth_seg = cv2.inRange(depth_raw, lower, upper)
-    mask_three_channel = cv2.merge([depth_seg, depth_seg, depth_seg])
-    bgr_img_remove_height = cv2.bitwise_and(bgr_img, mask_three_channel)
+def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, semi_circle = False, lower = 850, upper = 1100):
+    """!
+    @brief      Detect blocks and refine their contour using cluster.
+                1. Filter by height to eliminate the robot arm.
+                2. Filter the grid through hsv frame.
+                3. Find contours and create a subregion for each contour.
+                4. Perform depth-based detection to determine if it forms a stack.
+                5. Utilize clustering for refining each subregion.
+                6. Find contours again, return precise position and block type.
 
-    # Step 2
-    # remove shadow
-    black_mask = cv2.inRange(bgr_img_remove_height, np.array([0, 0, 0]), np.array([50, 50, 50]))
-    white_img = np.ones_like(bgr_img_remove_height) * 255
-    result = cv2.bitwise_and(bgr_img_remove_height, bgr_img_remove_height, mask=~black_mask)
-    result += cv2.bitwise_and(white_img, white_img, mask=black_mask)
-
-    # Step 3
-    # RGB filter
-    rgb_mask = cv2.inRange(bgr_img, np.array([80,80,70]), np.array([110, 120, 110]))
-    white_img = np.ones_like(result) * 255
-    result = cv2.bitwise_and(result, result, mask=~rgb_mask)
-    result += cv2.bitwise_and(white_img, white_img, mask=rgb_mask)
-
-    # Step 4
-    # hsv mask
-    hsv_img = cv2.cvtColor(result, cv2.COLOR_BGR2HSV)
-    hsv_mask = cv2.inRange(hsv_img, np.array([0,43,46]), np.array([180, 255, 255]))
-    hsv_mask = cv2.medianBlur(hsv_mask, 3)
-
-    # Step 5
-    # add mask
-    mask = np.zeros_like(hsv_mask, dtype=np.uint8)
-    cv2.fillPoly(mask, [boundary[0]], 255)
-    cv2.fillPoly(mask, [boundary[1]], 0)
-    masked_hsv = cv2.bitwise_and(hsv_mask, mask)
-
-    # Step 6
-    # find countor, filter countor
-    contours, _ = cv2.findContours(masked_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+    @param      rgb_img: image from Video Frame, in form of RGB.
+                depth_raw: depth image from DepthFrameRaw.
+                boundary: boundary of workspace.
+                semi_circle: For task3 & 4, we detect semi-circle first, then cluster the rest.
+                lower & upper: Height restriction.
+    
+    @return     blocks: List of block class.
+    """
     blocks = []
-    for contour in contours:
-        M = cv2.moments(contour)
+    # 1. Filter by height to eliminate the robot arm.
+    height_filter = cv2.inRange(depth_raw, lower, upper)
+    mask = cv2.merge([height_filter, height_filter, height_filter])
+    rgb_img_remove_robot_arm = cv2.bitwise_and(rgb_img, mask)
+
+    # 2. Filter the grid through hsv frame.
+    hsv_img = cv2.cvtColor(rgb_img_remove_robot_arm, cv2.COLOR_RGB2HSV)
+    hsv_mask = cv2.inRange(hsv_img, np.array([0,43,46]), np.array([180, 255, 255]))
+    # hsv_mask = cv2.medianBlur(hsv_mask, 3)
+    boundary_mask = np.zeros_like(hsv_mask, dtype=np.uint8)
+    cv2.fillPoly(boundary_mask, [boundary[0]], 255)
+    cv2.fillPoly(boundary_mask, [boundary[1]], 0)
+    masked_hsv = cv2.bitwise_and(hsv_mask, boundary_mask)
+
+    # 3. Find contours and create a subregion for each contour.
+    raw_contours, _ = cv2.findContours(masked_hsv, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2:]
+    for raw_contour in raw_contours:
+        M = cv2.moments(raw_contour)
         if M['m00'] < 200 or abs(M["m00"]) > 7000:
             continue
-        
-        # Step 7
-        # use depth to filter contours
-        side = 50
+        if M["m00"] < 850:
+            sub_region_side = 50
+        else:
+            sub_region_side = 80
+
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
-        cz = depth_raw[cy, cx]
-        check_points = []
-        check_points.append(depth_raw[int(cy - side / 2), int(cx - side / 2)])
-        check_points.append(depth_raw[int(cy - side / 2), int(cx + side / 2)])
-        check_points.append(depth_raw[int(cy + side / 2), int(cx - side / 2)])
-        check_points.append(depth_raw[int(cy + side / 2), int(cx + side / 2)])
-        count = 0
-        for check_point in check_points:
-            if abs(int(check_point) - int(cz)) > 8:
-                count += 1
-        if count <= 3:
-            continue
+        cz_0 = depth_raw[cy, cx]
+        cz_1 = depth_raw[cy + 8, cx + 8]
+        cz_2 = depth_raw[cy + 8, cx - 8]
+        cz_3 = depth_raw[cy - 8, cx + 8]
+        cz_4 = depth_raw[cy - 8, cx - 8]
+        cz_5 = depth_raw[cy + 4, cx + 4]
+        cz_6 = depth_raw[cy + 4, cx - 4]
+        cz_7 = depth_raw[cy - 4, cx + 4]
+        cz_8 = depth_raw[cy - 4, cx - 4]
+        cz = min(cz_0, cz_1, cz_2, cz_3, cz_4, cz_5, cz_6, cz_7, cz_8) # choose the highest
 
-        if M["m00"] < 1000:
-            side = 20
+        y_min = int(cy - sub_region_side / 2)
+        y_max = int(cy + sub_region_side / 2)
+        x_min = int(cx - sub_region_side / 2)
+        x_max = int(cx + sub_region_side / 2)
+        if x_min < 0 or y_min < 0:
+            x_min = 0
+            y_min = 0
+        if x_max > 1280:
+            x_max = 1280
+        if y_max > 720:
+            y_max = 720
+
+        canvas = np.zeros_like(masked_hsv)
+        cv2.drawContours(canvas, [raw_contour], 0, 255, -1)
+        result = cv2.bitwise_and(rgb_img, rgb_img, mask=canvas)
+        sub_region = result[y_min:y_max, x_min:x_max]
+        sub_region_depth = depth_raw[y_min:y_max, x_min:x_max]
+
+        check_point_depth_mean = (depth_raw[y_min,x_min] + depth_raw[y_max, x_min] + depth_raw[y_max, x_max] + depth_raw[y_min, x_max])/4
+        depth_gap = abs(cz - check_point_depth_mean)
+
+        # 4. Perform depth-based detection to determine if it forms a stack.
+        if depth_gap > 42:
+            # This is a stack
+            stack = True
+            n_colors = 6
         else:
-            side = 40
+            stack = False
+            n_colors = 4
 
-        block_ori = cv2.minAreaRect(contour)[2]
-        color = new_detectBlocksColorInRGBImage(frame_rgb=bgr_img, contour=contour)
+        # 5. Utilize clustering for refining each subregion.
+        refined_region = clusterThroughRgbLabDepth(sub_region, sub_region_depth, n_colors)
+        
+        # 6. Find contours again, return precise position and block type.
+        precise_contours, _ = cv2.findContours(refined_region, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        a_block = block(center=[cy,cx] , depth=cz, contour=contour, side=side, color= color,orientation=block_ori)
-        blocks.append(a_block)
+        for precise_contour in precise_contours:
+            M = cv2.moments(precise_contour)
+            if M['m00'] < 200 or abs(M["m00"]) > 7000:
+                continue
+            
+            epsilon = 0.08 * cv2.arcLength(precise_contour, True)
+            approx = cv2.approxPolyDP(precise_contour, epsilon, True)
+        
+            (box_x, box_y), (box_width, box_height), box_angle = cv2.minAreaRect(approx)
+            if box_width < box_height:
+                box_width, box_height = box_height, box_width
 
-    print(f"There is {len(blocks)} blocks")
+            aspect_ratio = box_width / box_height
+        
+            precise_cx = int(M['m10']/M['m00'])
+            precise_cy = int(M['m01']/M['m00'])
+            precise_cz = sub_region_depth[precise_cy, precise_cx]
+
+            if abs(aspect_ratio - 1) > 0.4 and not stack:
+                type = "arch"
+            elif M["m00"] < 850:
+                type = "small"
+            else:
+                type = "big"
+            precise_cx = precise_cx + cx - int(sub_region_side/2)
+            precise_cy = precise_cy + cy - int(sub_region_side/2)
+            precise_contour = precise_contour + np.array([cx - int(sub_region_side/2), cy - int(sub_region_side/2)])
+
+            color = new_detectBlocksColorInRGBImage(rgb_img, precise_contour)
+            a_block = block(center=[precise_cy, precise_cx], depth=precise_cz, orientation=box_angle, contour=precise_contour, color=color, type=type, stack=stack)
+            blocks.append(a_block)
+            break
     return blocks
 
 
+def clusterThroughRgbLabDepth(rgb_img, depth_raw, n_colors, useHsv = False):
+    """!
+    @brief      Utilize clustering for refining each subregion.
 
-if __name__ == '__main__':
-    rgb_img = cv2.imread('data/Depth_RGB/rgb_image4.png', cv2.IMREAD_UNCHANGED)
-    depth_img = cv2.imread('data/Depth_RGB/depth_image4.png', cv2.IMREAD_UNCHANGED)
-    blocks = new_detectBlocksInDepthImage(depth_raw=depth_img)
-    output = drawblock(blocks=blocks, output_img=rgb_img, new=True)
-    cv2.imshow("a", output)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    @param      rgb_img: subregion of RGB image.
+                depth_raw: subregion of depth image.
+                useHsv: Use hsv as a characteristic vector.
+                n_colors: number of clusters.
+    
+    @return     binary_image: refined region after cluster.
+    """
+    lab_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2LAB)
+
+    depth_img = cv2.normalize(depth_raw, None, 0, 1, cv2.NORM_MINMAX)
+    rgb_pixels = rgb_img.reshape((-1, 3))
+    lab_pixels = lab_img.reshape((-1, 3))
+    depth_pixels = depth_img.reshape((-1, 1))
+    if useHsv:
+        hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2HSV)
+        hsv_pixels = hsv_img.reshape((-1, 3))
+        combined_pixels = np.hstack((rgb_pixels, lab_pixels, hsv_pixels, depth_pixels))
+    else:
+        combined_pixels = np.hstack((rgb_pixels, lab_pixels, depth_pixels))
+    
+    kmeans = KMeans(n_clusters=n_colors)
+    kmeans.fit(combined_pixels)
+    label_counts = Counter(kmeans.labels_)
+    most_common_label = label_counts.most_common(3)[1][0]
+    second_common_label = label_counts.most_common(3)[2][0]
+
+    most_common_count = label_counts.most_common(3)[1][1]
+    second_common_count = label_counts.most_common(3)[2][1] 
+
+    # Combine
+    if most_common_count < 400:
+        kmeans.labels_[kmeans.labels_ == second_common_label] = most_common_label
+
+    blank_image = np.ones(rgb_img.shape, dtype=np.uint8) * 255
+    cluster_indices = np.where(kmeans.labels_ == most_common_label)
+    blank_image.reshape((-1, 3))[cluster_indices] = kmeans.cluster_centers_[most_common_label, :3].astype(np.uint8)
+
+    gray_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
+    _, binary_image = cv2.threshold(gray_image, 254, 255, cv2.THRESH_BINARY_INV)
+
+    return binary_image
+
+
+def drawblock(blocks, output_img:np.array, boundary = None) -> np.array:
+    """!
+    @brief      Draw blocks for visualization
+
+
+    @param      block: information of a block
+                img: output image for visualization
+    """
+    for block in blocks:
+        color = block.color
+        orientation = block.orientation
+        center = block.center[1], block.center[0]
+        cv2.circle(output_img, (center[0], center[1]), 2, (0,255,0), -1)
+        cv2.putText(output_img, str(int(np.rad2deg(orientation))), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
+        cv2.putText(output_img, str(color), (center[0] + 15, center[1] - 15), font, 0.4, (0,255,0), thickness=1)
+        cv2.putText(output_img, block.type, (center[0] + 15, center[1] + 15), font, 0.4, (0,255,0), thickness=1)
+        if block.stack:
+            cv2.putText(output_img, "stack", (center[0] + 15, center[1]), font, 0.4, (0,255,0), thickness=1)
+        cv2.drawContours(output_img, [block.contour], -1, (255,0,0), 2)
+    
+    if boundary != None:
+        cv2.fillPoly(output_img, [boundary[0]], 255)
+        cv2.fillPoly(output_img, [boundary[1]], 0)
+    cv2.imwrite("../data/result.png", output_img)
+    
+    return output_img
