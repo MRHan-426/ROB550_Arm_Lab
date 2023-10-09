@@ -200,7 +200,13 @@ def Target_Pos_Compensation(world_pos):
     y = world_pos[1]
     z = world_pos[2]
     xy_dist = np.sqrt(np.square(x) + np.square(y))
-    z_offset = xy_dist * 0.068 + 4
+    if xy_dist < 200:
+        x = x * 0.97
+        y = y * 0.97
+    elif xy_dist < 350:
+        x = x * 0.985
+        y = y * 0.985
+    z_offset = xy_dist * 0.068 + 3
     z = z+z_offset
     return [x,y,z]
 
@@ -315,7 +321,11 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
     print("IK_Kinematics: Success")
 
     # Compensation for joint1 (don't know why)
-    theta1 = theta1 - np.pi/90
+    if theta1 < -np.pi/4:
+        theta1 = theta1 - np.pi/180
+    elif theta1 > np.pi/4:
+        theta1 = theta1 + np.pi/180
+
     return True, [theta1,theta2,theta3,theta4,theta5]
     pass
 

@@ -25,6 +25,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QTimer
 from resource.config_parse import parse_dh_param_file
 from sensor_msgs.msg import JointState
 import rclpy
+# from interbotix_robot_arm import InterbotixRobot
 
 sys.path.append('../../../interbotix_ws/src/interbotix_ros_toolboxes/interbotix_xs_toolbox/interbotix_xs_modules/interbotix_xs_modules/xs_robot') 
 from arm import InterbotixManipulatorXS
@@ -263,6 +264,14 @@ class RXArmThread(QThread):
         self.rxarm = rxarm
         self.node = rclpy.create_node('rxarm_thread')
         self.JB_replay = 0
+
+        # # pid modification
+        # joint_names = self.rxarm.joint_names
+        # pids = []
+        # for name in joint_names:
+        #     pid = self.rxarm.get_joint_position_pid_params(name)
+        #     pids.append(pid)
+        #     print("PID para is: ",name,pid)
 
         self.subscription = self.node.create_subscription(
             JointState,
