@@ -691,7 +691,7 @@ class StateMachine():
         if isbig:
             place_offset = 5
         else:
-            place_offset = 10
+            place_offset = 8
         place_height = 70 # place gripper above block
         pos2[2] = pos2[2] + place_offset
         pos1[2] = pos1[2] + place_height
@@ -774,7 +774,7 @@ class StateMachine():
                     last_effort = effort
                     effort_diff_norm = np.linalg.norm(effort_difference)
                 
-                    if i > 2 and effort_diff_norm > 100:
+                    if i > 2 and effort_diff_norm > 40:
                         print("Auto Place: Effort difference is: ", effort_diff_norm)
                         print("Auto Place: Reach Pos2 in advance")
                         break
@@ -1253,7 +1253,7 @@ class StateMachine():
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
 
             # Filter out possible mis-ditection
-            if block_center[2] < 60: 
+            if block_center[2] < 65: 
                 # print(block_center)
                 # Assume all non-sorted blocks are in the positive plane:    
                 print("--------------------- start a block:No.",block_counter,"---------------------------")
@@ -1342,7 +1342,7 @@ class StateMachine():
         for block in sorted_blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
  
-            if block_center[2] < 50: 
+            if block_center[2] < 65: 
                 # print(block_center)
                 # Assume all non-sorted blocks are in the positive plane:
                 if block_center [1] >= 0: 
@@ -1351,10 +1351,10 @@ class StateMachine():
                         print("================ Small Block No.",small_block_counter," ",
                           block.color,"=========================")
                         block_center_copy = list(block_center)
-                        block_center_copy[2] = 25
+                        block_center_copy[2] = 20
                         self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=False)
                         time.sleep(0.5)
-                        self.auto_place(target_pos=[-300,-25,small_z],target_orientation = 0)
+                        self.auto_place(target_pos=[-300,25,small_z],target_orientation = 0)
                         small_z += 25
                         small_block_counter += 1
                     # Line big blocks in color order in the right negative plane
@@ -1362,7 +1362,7 @@ class StateMachine():
                         print("================ Big Block No.",big_block_counter," ",
                           block.color,"=========================")
                         block_center_copy = list(block_center)
-                        block_center_copy[2] = 38
+                        block_center_copy[2] = 35
                         self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=True)
                         time.sleep(0.5)
                         self.auto_place(target_pos=[300,25,big_z],target_orientation = 0)
