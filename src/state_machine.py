@@ -306,7 +306,7 @@ class StateMachine():
         @brief    calculate the moving time and accelerate time of motion 
         """
         displacement = np.array(target_joint) - self.rxarm.get_positions()
-        angular_v = np.ones(displacement.shape) * (np.pi / 4)
+        angular_v = np.ones(displacement.shape) * (np.pi / 3)
         angular_v[0] = np.pi/3
         angular_t = np.abs(displacement) / angular_v
         move_time = np.max(angular_t)
@@ -597,13 +597,14 @@ class StateMachine():
         pos3 = list(target_pos[:])
 
         if isbig:
-            pick_offset = 40 # compensation for block height
+            pick_offset = 38 # compensation for block height
         else:
             pick_offset = 35
+            
         if isStack and not isbig and depth > 55:
-            pick_offset = 16
+            pick_offset = 26
         elif isStack and not isbig and depth < 55:
-            pick_offset = 21
+            pick_offset = 22
         elif isStack and isbig:
             pick_offset = 30
 
@@ -635,7 +636,7 @@ class StateMachine():
                 self.rxarm.arm.set_joint_positions(pre_pos1,
                                            moving_time = move_time, 
                                            accel_time = ac_time,
-                                           blocking = True)
+                                           blocking = False)
                 
                 move_time,ac_time = self.calMoveTime(pre_pos2)
                 self.rxarm.arm.set_joint_positions(pre_pos2,
@@ -766,7 +767,7 @@ class StateMachine():
                 self.rxarm.arm.set_joint_positions(pre_pos1,
                                            moving_time = move_time, 
                                            accel_time = ac_time,
-                                           blocking = True)
+                                           blocking = False)
                 
                 move_time,ac_time = self.calMoveTime(pre_pos2)
                 self.rxarm.arm.set_joint_positions(pre_pos2,
@@ -781,7 +782,7 @@ class StateMachine():
                 self.rxarm.arm.set_joint_positions(pre_pos1,
                                            moving_time = move_time, 
                                            accel_time = ac_time,
-                                           blocking = True)
+                                           blocking = False)
 
             move_time,ac_time = self.calMoveTime(joint_angles1)
             self.rxarm.arm.set_joint_positions(joint_angles1,
@@ -899,13 +900,13 @@ class StateMachine():
                 self.rxarm.arm.set_joint_positions(pre_pos1,
                                            moving_time = move_time,
                                            accel_time = ac_time,
-                                           blocking = True)
+                                           blocking = False)
                
                 move_time,ac_time = self.calMoveTime(pre_pos2)
                 self.rxarm.arm.set_joint_positions(pre_pos2,
                                            moving_time = move_time,
                                            accel_time = ac_time,
-                                           blocking = True)
+                                           blocking = False)
                
                 move_time,ac_time = self.calMoveTime(joint_angles0)
                 self.rxarm.arm.set_joint_positions(joint_angles0,
@@ -922,7 +923,7 @@ class StateMachine():
                 self.rxarm.arm.set_joint_positions(pre_pos1,
                                            moving_time = move_time,
                                            accel_time = ac_time,
-                                           blocking = True)
+                                           blocking = False)
 
 
             move_time,ac_time = self.calMoveTime(joint_angles0)
@@ -1260,7 +1261,7 @@ class StateMachine():
         self.block_number_counter = 1
         self.small_counter, self.big_counter = 0,0
         self.small_x , self.big_x = -160,160
-        self.small_y,self.big_y = -100,-100
+        self.small_y,self.big_y = -120,-120
 
         if istask3:
             block_offset = 80
@@ -1300,7 +1301,7 @@ class StateMachine():
 
                 if block_center[2] < 150: 
                     print("--------------------- start a block:No.",self.block_number_counter,"---------------------------")
-                    print("block_depth", block_center[2])
+                    print("block_depth", block.depth)
 
                     # Move small blocks in right plane to left planet
                     # if block_center[2] > 65:
@@ -1320,8 +1321,12 @@ class StateMachine():
                             print("=========== Small ",block_center," =============")
                             if block.stack == False:
                                 block_center[2] = 25
-                            self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False, isStack = block.stack)
+                            else:
+                                block_center[2] = block.depth
+                            self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False, isStack = block.stack, depth=block.depth)
                             time.sleep(0.2)
+                            print("gripper position:", self.rxarm.get_gripper_position())
+
                             if self.rxarm.get_gripper_position() > 0.02:
                                 print("Actually it is a big block")
                                 if self.big_counter % 2 == 0:
@@ -1351,9 +1356,12 @@ class StateMachine():
                             print("=========== Big ",block_center," =============")
                             if block.stack == False:
                                 block_center[2] = 38
-                            
-                            self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True ,isStack = block.stack)
+                            else:
+                                block_center[2] = block.depth
+                            self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True ,isStack = block.stack, depth = block.depth)
                             time.sleep(0.2)
+                            print("gripper position:", self.rxarm.get_gripper_position())
+
                             if self.rxarm.get_gripper_position() < 0.02:
                                 print("Actually it is a small block")
                                 # compute the place position   
@@ -1382,6 +1390,9 @@ class StateMachine():
                     time.sleep(0.2)
                     # self.initialize_rxarm()
                     # time.sleep(0.5)
+                    # self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
+                    #         accel_time=0.5,
+                    #         blocking=True)
                     print("--------------------- end a block ---------------------------")
                     # self.safe_pos()
                 else:
@@ -1790,7 +1801,7 @@ class StateMachine():
         print("----------------------Clear Stage Complete---------------------")
 
         # Detect blocks in the plane
-        self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
+        self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary[0:2])
 
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
