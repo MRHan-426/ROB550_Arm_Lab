@@ -30,7 +30,6 @@ import rclpy
 sys.path.append('../../../interbotix_ws/src/interbotix_ros_toolboxes/interbotix_xs_toolbox/interbotix_xs_modules/interbotix_xs_modules/xs_robot') 
 from arm import InterbotixManipulatorXS
 from mr_descriptions import ModernRoboticsDescription as mrd
-
 """
 TODO: Implement the missing functions and add anything you need to support them
 """
@@ -147,6 +146,9 @@ class RXArm(InterbotixManipulatorXS):
                                  accel_time=self.accel_time,
                                  blocking=False)
 
+    def get_gripper_position(self):
+        return self.gripper.gripper_state()
+    
     def set_moving_time(self, moving_time):
         self.moving_time = moving_time
 

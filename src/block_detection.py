@@ -177,7 +177,14 @@ def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, semi_circle = False, 
         if depth_gap > 42:
             # This is a stack
             stack = True
-            n_colors = 6
+            # filter the lower level
+            height_filter = cv2.inRange(sub_region_depth, int(cz) - 20, int(cz) + 10)
+            mask = cv2.merge([height_filter, height_filter, height_filter])
+            sub_region = cv2.bitwise_and(sub_region, mask)
+            n_colors = 3
+
+        elif depth_gap < 5:
+            continue
         else:
             stack = False
             n_colors = 4
@@ -199,14 +206,15 @@ def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, semi_circle = False, 
             (box_x, box_y), (box_width, box_height), box_angle = cv2.minAreaRect(approx)
             if box_width < box_height:
                 box_width, box_height = box_height, box_width
-
+            if box_height < 10:
+                continue
             aspect_ratio = box_width / box_height
         
             precise_cx = int(M['m10']/M['m00'])
             precise_cy = int(M['m01']/M['m00'])
             precise_cz = sub_region_depth[precise_cy, precise_cx]
 
-            if abs(aspect_ratio - 1) > 0.4 and not stack:
+            if abs(aspect_ratio - 1) > 0.4 and not stack and M["m00"] > 850:
                 type = "arch"
             elif M["m00"] < 850:
                 type = "small"
@@ -217,7 +225,27 @@ def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, semi_circle = False, 
             precise_contour = precise_contour + np.array([cx - int(sub_region_side/2), cy - int(sub_region_side/2)])
 
             color = new_detectBlocksColorInRGBImage(rgb_img, precise_contour)
-            a_block = block(center=[precise_cy, precise_cx], depth=precise_cz, orientation=box_angle, contour=precise_contour, color=color, type=type, stack=stack)
+            
+            y_min = int(precise_cy - sub_region_side / 2)
+            y_max = int(precise_cy + sub_region_side / 2)
+            x_min = int(precise_cx - sub_region_side / 2)
+            x_max = int(precise_cx + sub_region_side / 2)
+            check_point_depth_mean = (depth_raw[y_min,x_min] + depth_raw[y_max, x_min] + depth_raw[y_max, x_max] + depth_raw[y_min, x_max])/4
+            depth_gap = abs(cz - check_point_depth_mean)
+            if depth_gap > 30 and type == "small":
+                # This is a stack
+                stack = True
+                print(color, f"precise depth gap = {depth_gap}")
+            elif depth_gap > 50 and type == "big":
+                stack = True
+                print(color, f"precise depth gap = {depth_gap}")
+            
+            elif depth_gap < 5:
+                continue
+            else:
+                stack = False
+
+            a_block = block(center=[precise_cy, precise_cx], depth=depth_gap, orientation=box_angle, contour=precise_contour, color=color, type=type, stack=stack)
             blocks.append(a_block)
             break
     return blocks
@@ -249,16 +277,20 @@ def clusterThroughRgbLabDepth(rgb_img, depth_raw, n_colors, useHsv = False):
     
     kmeans = KMeans(n_clusters=n_colors)
     kmeans.fit(combined_pixels)
+
     label_counts = Counter(kmeans.labels_)
-    most_common_label = label_counts.most_common(3)[1][0]
-    second_common_label = label_counts.most_common(3)[2][0]
+    if n_colors > 2:
+        most_common_label = label_counts.most_common(3)[1][0]
+        second_common_label = label_counts.most_common(3)[2][0]
 
-    most_common_count = label_counts.most_common(3)[1][1]
-    second_common_count = label_counts.most_common(3)[2][1] 
+        most_common_count = label_counts.most_common(3)[1][1]
+        second_common_count = label_counts.most_common(3)[2][1] 
 
-    # Combine
-    if most_common_count < 400:
-        kmeans.labels_[kmeans.labels_ == second_common_label] = most_common_label
+        # Combine
+        if most_common_count < 400:
+            kmeans.labels_[kmeans.labels_ == second_common_label] = most_common_label
+    else:
+        most_common_label = label_counts.most_common(2)[1][0]
 
     blank_image = np.ones(rgb_img.shape, dtype=np.uint8) * 255
     cluster_indices = np.where(kmeans.labels_ == most_common_label)

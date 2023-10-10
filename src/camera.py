@@ -269,6 +269,11 @@ class Camera():
             if self.cameraCalibrated == True and self.boundary == []:
                 self.boundary.append(self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]))
                 self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]))
+                
+                # TASK ONE
+                self.boundary.append(self.inv_affline_transformation([[200, 75],[200, 540],[1100, 540],[1100, 75]]))
+                self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 545],[735, 545],[735, 365]]))
+                
                 print("===========================================")
                 print("boundary list:")
                 print(self.boundary)
@@ -286,11 +291,11 @@ class Camera():
                 # modified_rgb = cv2.warpPerspective(rgb_img, self.transformation_matrix, (rgb_img.shape[1], rgb_img.shape[0]))
                 # rgb_modified_file_name = "../data/rgb_modified" + str(current_time) + ".png"
                 # cv2.imwrite(rgb_modified_file_name, modified_rgb)
-                self.blocks = detectBlocksInRGBImage(self.VideoFrame.copy(), self.DepthFrameRaw,boundary=self.boundary)
-                output_image = drawblock(self.blocks, rgb_img, boundary=None, new= True)
+                self.blocks = detectBlocksUsingCluster(self.VideoFrame.copy(), self.DepthFrameRaw,boundary=self.boundary[0:2])
+                output_image = drawblock(self.blocks, rgb_img, boundary=None)
                 modified_image = cv2.warpPerspective(output_image, self.transformation_matrix, (output_image.shape[1], output_image.shape[0]))
-                # cv2.rectangle(modified_image, (200, 75), (1100, 700), 255, cv2.FILLED)
-                # cv2.rectangle(modified_image, (570, 365),(735, 700), 0, cv2.FILLED)
+                # cv2.rectangle(modified_image, (200, 75), (1100, 550), 255, cv2.FILLED)
+                # cv2.rectangle(modified_image, (570, 365),(735, 550), 0, cv2.FILLED)
                 self.GridFrame = modified_image
 
             else:
@@ -367,7 +372,7 @@ class Camera():
         np.savetxt(filename, self.extrinsic_matrix, fmt='%10f', delimiter=', ')
 
             
-    def transformFromImageToWorldFrame(self, pos: tuple) -> tuple:
+    def transformFromImageToWorldFrame(self, pos: tuple) -> list:
         """!
         @brief      transform From Image To WorldFrame
 
@@ -405,10 +410,10 @@ class Camera():
                 P_c = np.array([X_c, Y_c, Z_c]).reshape(3, 1)
                 t = t.reshape(3,1)
                 P_w = R @ P_c + t
-            return (P_w[0][0], P_w[1][0], P_w[2][0])
+            return [P_w[0][0], P_w[1][0], P_w[2][0]]
         else:
             print("ERROR: Cannot load depth information")
-            return (0, 0, 0)
+            return [0, 0, 0]
 
 
 class ImageListener(Node):
