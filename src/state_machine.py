@@ -306,13 +306,15 @@ class StateMachine():
         @brief    calculate the moving time and accelerate time of motion 
         """
         displacement = np.array(target_joint) - self.rxarm.get_positions()
-        angular_v = np.ones(displacement.shape) * (np.pi / 3)
-        angular_v[0] = np.pi/3
+        angular_v = np.ones(displacement.shape) * (np.pi / 4)
+        angular_v[0] = np.pi / 6
+        angular_v[1] = np.pi / 5
+        angular_v[4] = np.pi / 3
         angular_t = np.abs(displacement) / angular_v
         move_time = np.max(angular_t)
         if move_time < 0.4:
             move_time = 0.4
-        ac_time = move_time / 3
+        ac_time = move_time / 2
         return move_time, ac_time
 
 
@@ -456,6 +458,71 @@ class StateMachine():
         print(world_pos)
         world_pos.tolist()
         return world_pos
+    
+
+    def sky_walker(self,camera_clean = False, task5 = False):
+        """!
+        @brief      raise the arm up to 1: make camera vision clear
+                                        2: prevent sweeping other blocks
+                                        3: pre-pose for to-the-sky
+        """
+
+        current_joint_angles = self.rxarm.get_positions()
+
+        if task5:
+            target_joint = [-np.pi/4,-np.pi/5,-np.pi/4,0,0]
+        elif camera_clean:
+            target_joint = [0,-np.pi/3,-np.pi/4,0,0]
+        else:
+            theta0 = current_joint_angles[0]
+            target_joint = [theta0,-np.pi/5,-np.pi/8,np.pi/6,0]
+        
+        current_joint_angles = self.rxarm.get_positions()
+        displacement = np.array(target_joint) - current_joint_angles
+
+        if np.max(abs(displacement)) > np.pi/2:   
+            
+            displacement_unit = displacement/3
+            pre_pos1 = current_joint_angles + displacement_unit
+            pre_pos2 = current_joint_angles + displacement_unit * 2
+
+            move_time,ac_time = self.calMoveTime(pre_pos1)
+            self.rxarm.arm.set_joint_positions(pre_pos1,
+                                    moving_time = move_time, 
+                                    accel_time = ac_time*1.5,
+                                    blocking = False)
+            move_time,ac_time = self.calMoveTime(pre_pos2)
+            self.rxarm.arm.set_joint_positions(pre_pos2,
+                                    moving_time = move_time, 
+                                    accel_time = ac_time*1.5,
+                                    blocking = False)
+            
+            move_time,ac_time = self.calMoveTime(target_joint)
+            self.rxarm.arm.set_joint_positions(target_joint,
+                                    moving_time = move_time, 
+                                    accel_time = ac_time*1.5,
+                                    blocking = False)
+            time.sleep(1)
+            
+        elif np.max(abs(displacement)) > np.pi/3:
+
+            displacement_unit = displacement/2
+            pre_pos1 = current_joint_angles + displacement_unit
+            move_time,ac_time = self.calMoveTime(pre_pos1)
+            self.rxarm.arm.set_joint_positions(pre_pos1,
+                                    moving_time = move_time, 
+                                    accel_time = ac_time*1.5,
+                                    blocking = False)
+
+        move_time,ac_time = self.calMoveTime(target_joint)
+        self.rxarm.arm.set_joint_positions(target_joint,
+                                    moving_time = move_time, 
+                                    accel_time = ac_time*1.5,
+                                    blocking = False)
+        time.sleep(1)
+        print("Auto Place: Reach Pos1")
+        time.sleep(1)
+
 
 
 
@@ -1973,46 +2040,7 @@ class StateMachine():
 
             # to the sky!!!
             if block_counter > 5:
-                target_joint = [-np.pi/4,-np.pi/5,-np.pi/4,0,0]
-                current_joint_angles = self.rxarm.get_positions()
-                displacement = np.array(target_joint) - current_joint_angles
-
-                if np.max(abs(displacement)) > np.pi/2:
-                    # self.initialize_rxarm()
-                    # time.sleep(0.5)    
-                    
-                    displacement_unit = displacement/3
-                    pre_pos1 = current_joint_angles + displacement_unit
-                    pre_pos2 = current_joint_angles + displacement_unit * 2
-
-                    move_time,ac_time = self.calMoveTime(pre_pos1)
-                    self.rxarm.arm.set_joint_positions(pre_pos1,
-                                            moving_time = move_time+0.5, 
-                                            accel_time = ac_time,
-                                            blocking = True)
-                    move_time,ac_time = self.calMoveTime(pre_pos2)
-                    self.rxarm.arm.set_joint_positions(pre_pos2,
-                                            moving_time = move_time+0.5, 
-                                            accel_time = ac_time,
-                                            blocking = True)
-                elif np.max(abs(displacement)) > np.pi/3:
-
-                    displacement_unit = displacement/2
-                    pre_pos1 = current_joint_angles + displacement_unit
-                    move_time,ac_time = self.calMoveTime(pre_pos1)
-                    self.rxarm.arm.set_joint_positions(pre_pos1,
-                                            moving_time = move_time+0.5, 
-                                            accel_time = ac_time,
-                                            blocking = True)
-
-                move_time,ac_time = self.calMoveTime(target_joint)
-                self.rxarm.arm.set_joint_positions(target_joint,
-                                            moving_time = move_time*1.5, 
-                                            accel_time = ac_time,
-                                            blocking = True)
-                print("Auto Place: Reach Pos1")
-                time.sleep(1.2)
-
+                self.sky_walker(task5=True)
 
             if block_counter ==1:
                 y_offset = 0
@@ -2035,46 +2063,7 @@ class StateMachine():
 
             # to the sky!!!
             if block_counter > 5:
-                target_joint = [-np.pi/4,-np.pi/5,-np.pi/4,0,0]
-                current_joint_angles = self.rxarm.get_positions()
-                displacement = np.array(target_joint) - current_joint_angles
-
-                if np.max(abs(displacement)) > np.pi/2:
-                    # self.initialize_rxarm()
-                    # time.sleep(0.5)    
-                    
-                    displacement_unit = displacement/3
-                    pre_pos1 = current_joint_angles + displacement_unit
-                    pre_pos2 = current_joint_angles + displacement_unit * 2
-
-                    move_time,ac_time = self.calMoveTime(pre_pos1)
-                    self.rxarm.arm.set_joint_positions(pre_pos1,
-                                            moving_time = move_time+0.5, 
-                                            accel_time = ac_time,
-                                            blocking = True)
-                    
-                    move_time,ac_time = self.calMoveTime(pre_pos2)
-                    self.rxarm.arm.set_joint_positions(pre_pos2,
-                                            moving_time = move_time+0.5, 
-                                            accel_time = ac_time,
-                                            blocking = True)
-                elif np.max(abs(displacement)) > np.pi/3:
-
-                    displacement_unit = displacement/2
-                    pre_pos1 = current_joint_angles + displacement_unit
-                    move_time,ac_time = self.calMoveTime(pre_pos1)
-                    self.rxarm.arm.set_joint_positions(pre_pos1,
-                                            moving_time = move_time+0.5, 
-                                            accel_time = ac_time,
-                                            blocking = True)
-
-                move_time,ac_time = self.calMoveTime(target_joint)
-                self.rxarm.arm.set_joint_positions(target_joint,
-                                            moving_time = move_time*1.5, 
-                                            accel_time = ac_time,
-                                            blocking = True)
-                print("Auto Place: Reach Pos1")
-                time.sleep(1.2)
+               self.sky_walker(task5=True)
 
             big_z += 38
             print("============ Coomplet Block NO.",block_counter," =================")
