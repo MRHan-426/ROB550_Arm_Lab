@@ -1756,7 +1756,7 @@ class StateMachine():
                     if not color_line_big[block.color]:
                         target_pos = color_place_big[block.color]
                         self.sky_walker()
-                        self.auto_place(target_pos= target_pos, target_orientation = np.pi/2,isbig = True, save_time=False)
+                        self.auto_place(target_pos= target_pos, target_orientation = np.pi/2,isbig = True, save_time=False, vertical = True)
                         color_line_big[block.color] = True
                         self.sky_walker()
 
@@ -1773,7 +1773,7 @@ class StateMachine():
                     if not color_line_small[block.color]:
                         target_pos = color_place_small[block.color]
                         self.sky_walker()
-                        self.auto_place(target_pos= target_pos, target_orientation = np.pi/2,isbig = False, save_time=False)
+                        self.auto_place(target_pos= target_pos, target_orientation = np.pi/2,isbig = False, save_time=False, vertical = True)
                         color_line_small[block.color] = True
                         self.sky_walker()
 
