@@ -1867,7 +1867,7 @@ class StateMachine():
                         block_center_copy[2] = 20
                         self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=False)
                         time.sleep(0.5)
-                        self.auto_place(target_pos=[-300,25,self.small_z],target_orientation = 0)
+                        self.auto_place(target_pos=[-250,275,self.small_z],target_orientation = 0)
                         self.small_z += 25
                         small_block_counter += 1
                     # Line big blocks in color order in the right negative plane
@@ -1878,7 +1878,7 @@ class StateMachine():
                         block_center_copy[2] = 35
                         self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=True)
                         time.sleep(0.5)
-                        self.auto_place(target_pos=[300,25,self.big_z],target_orientation = 0)
+                        self.auto_place(target_pos=[250,275,self.big_z],target_orientation = 0)
                         self.big_z += 38
                         big_block_counter += 1
             time.sleep(1)
