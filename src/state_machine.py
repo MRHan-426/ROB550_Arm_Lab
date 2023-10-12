@@ -1803,85 +1803,132 @@ class StateMachine():
         print("---------------------- Clear Stage1 Start ---------------------")
         while True:
             self.sky_walker(camera_clean=True)
-            time.sleep(1)
-            self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
-            time.sleep(1)
-
-            while self.camera.blocks == None:
-                print("There is no blocks in the workspace!!")
-                time.sleep(1)
+            time.sleep(0.5)
+            self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), 
+                                                          self.camera.DepthFrameRaw,
+                                                          boundary=self.camera.boundary[0:2],
+                                                          only_blocks=True)
+            time.sleep(0.1)
             
             isStack = False
+            x_big, x_small = 150,-150
+            y_big, y_small = 20,20
+            block_offset = 65
+            big_counter1,small_counter1 = 1,1
 
             for block in self.camera.blocks:
                 block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
 
-                if block_center[2] > 65:
-                        # if it's stack 2 high, place the top one first
-                        print("=========== Stack Two ",block_center," =============")
-                        self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False)
+                if block.stack:
+                    isStack = True
+                    block_center[2] = block.depth
+                    # if it's stack 2 high, place the top one first
+                    print("=========== Remove a Stack block Start ",block_center," =============")
+
+                    if block.type == 'big':
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True,isStack=True,depth=block.depth)
+                        self.sky_walker()
                         time.sleep(0.2)
-                        current_position = self.compute_ee_world_pos()
-                        self.auto_change_position(current_pos=current_position)
-                        print("=========== Stack Two Clear Comptele =============")
-                        isStack = True
+                        if big_counter1 % 2 == 0:
+                            x_big = 150
+                            if self.big_counter1 > 1:
+                                y_big -= block_offset
+                        else:
+                            x_big += block_offset
+                        self.auto_place(target_pos=[x_big,y_big,0],target_orientation = 0,isbig=True)
+                        self.sky_walker()
+                        big_counter1 += 1
+                    else:
+                        self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False,isStack=True,depth=block.depth)
+                        time.sleep(0.2)
+                        self.sky_walker()
+                        if small_counter1 % 2 == 0:
+                            x_small = -160
+                            if small_counter1 > 1:
+                                y_small -= block_offset
+                        else:
+                            x_small -= block_offset
+                        self.auto_place(target_pos=[x_small,y_small,0],target_orientation = 0,isbig=False)
+                        self.sky_walker()
+                        small_counter1 += 1
+                        
+                    print("=========== Remove a Stack block Comptele =============")                   
             
             if not isStack:
-                break     
-        time.sleep(0.5)
-        self.sky_walker(camera_clean=True)   
+                break              
         print("---------------------- Clear Stage1 Complete ---------------------")
 
-        print("---------------------- Stack Stage Start ---------------------")
+
+        print("---------------------- Detect Stage Start ---------------------")
         # Detect blocks in the plane
-        self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
-        time.sleep(1.5)
-        self.initialize_rxarm()
-        time.sleep(0.5)
-
-        while self.camera.blocks == None:
-            print("There is no blocks in the workspace!!")
+        while True:
+            time.sleep(0.2)
+            self.sky_walker(camera_clean=True)
             time.sleep(1)
+            self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), 
+                                                          self.camera.DepthFrameRaw,
+                                                          boundary=self.camera.boundary[0:2],
+                                                          only_blocks=True)
+            time.sleep(0.1)
+            
+            # Define a custom order for colors
+            color_order = {"red": 0, "orange": 1, "yellow": 2, "green": 3, "blue": 4, "purple": 5, None:6}
+
+            # Sort the list of blocks by color
+            blocks = self.camera.blocks
+            sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
+            if len(sorted_blocks) == 12:
+                print("Good! There are 12 blocks")
+                break
+        print("---------------------- Detect Stage Complete ---------------------")
         
-        # Define a custom order for colors
-        color_order = {"red": 0, "orange": 1, "yellow": 2, "green": 3, "blue": 4, "purple": 5, None:6}
-
-        # Sort the list of blocks by color
-        blocks = self.camera.blocks
-        sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
-
-        self.small_z, self.big_z = 0, 0
-        block_counter,small_block_counter,big_block_counter = 1,1,1
+        
+        print("---------------------- stack Stage Start ---------------------")
+        big_counter2,small_counter2 = 0,0
+        z_big, z_small = 0,0
         for block in sorted_blocks:
             block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
  
-            if block_center[2] < 65: 
-                # print(block_center)
-                # Assume all non-sorted blocks are in the positive plane:
-                if block_center [1] >= 0: 
-                    # Line small blocks in color order in the left negative plane
-                    if block.type == "small":
-                        print("================ Small Block No.",small_block_counter," ",
-                          block.color,"=========================")
-                        block_center_copy = list(block_center)
-                        block_center_copy[2] = 20
-                        self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=False)
-                        time.sleep(0.5)
-                        self.auto_place(target_pos=[-250,275,self.small_z],target_orientation = 0)
-                        self.small_z += 25
-                        small_block_counter += 1
-                    # Line big blocks in color order in the right negative plane
-                    elif block.type == "big":
-                        print("================ Big Block No.",big_block_counter," ",
-                          block.color,"=========================")
-                        block_center_copy = list(block_center)
-                        block_center_copy[2] = 35
-                        self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=True)
-                        time.sleep(0.5)
-                        self.auto_place(target_pos=[250,275,self.big_z],target_orientation = 0)
-                        self.big_z += 38
-                        big_block_counter += 1
-            time.sleep(1)
+            if block.type == "small":
+                print("================ Small Block No.",small_counter2," ",
+                    block.color,"=========================")
+                block_center_copy = list(block_center)
+                block_center_copy[2] = 25
+                self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=False)
+                self.sky_walker()
+                time.sleep(0.2)
+                if self.rxarm.get_gripper_position() >= 0.02:
+                    print("Actually it is a Big block")
+                    self.auto_place(target_pos=[250,275,z_big],target_orientation = 0,isbig=True)
+                    self.sky_walker()
+                    big_counter2 +=1
+                    z_big += 38
+                else:
+                    self.auto_place(target_pos=[-250,275,z_small],target_orientation = 0,isbig=False)
+                    self.sky_walker()
+                    small_counter2 += 1
+                    z_small += 25
+
+            elif block.type == "big":
+                print("================ Big Block No.",big_counter2," ",
+                    block.color,"=========================")
+                block_center_copy = list(block_center)
+                block_center_copy[2] = 35
+                self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=True)
+                self.sky_walker()
+                time.sleep(0.2)
+                if self.rxarm.get_gripper_position() <= 0.02:
+                    print("Actually it is a Small block")
+                    self.auto_place(target_pos=[-250,275,z_small],target_orientation = 0,isbig=False)
+                    self.sky_walker()
+                    small_counter2 +=1
+                    z_big += 25
+                else:
+                    self.auto_place(target_pos=[250,275,z_big],target_orientation = 0,isbig=True)
+                    self.sky_walker()
+                    big_counter2 += 1
+                    z_small += 38
+        time.sleep(1)
         print("---------------------- Stack Stage Complete ---------------------")
         self.initialize_rxarm()
         time.sleep(0.5)
@@ -1890,6 +1937,11 @@ class StateMachine():
                             blocking=True)
         print("##################### Stack 'em high Complete #####################")
         pass
+    
+
+
+
+
     
     # Event 5:To the sky!
     def to_the_sky(self):
