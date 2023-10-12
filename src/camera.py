@@ -274,28 +274,37 @@ class Camera():
                 self.boundary.append(self.inv_affline_transformation([[200, 75],[200, 540],[1100, 540],[1100, 75]]))
                 self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 545],[735, 545],[735, 365]]))
                 
+                # TASK Three
+                self.boundary.append(self.inv_affline_transformation([[200, 75],[200, 448],[1100, 448],[1100, 75]]))
+                self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 448],[735, 448],[735, 365]]))
+                
+
+                self.boundary.append(self.inv_affline_transformation([[200, 450],[200, 700],[1100, 700],[1100, 450]]))
+                self.boundary.append(self.inv_affline_transformation([[570, 450],[570, 700],[735, 700],[735, 450]]))
+
+                # Work space for task3 [8:10]
+                self.boundary.append(self.inv_affline_transformation([[400, 150],[400, 350],[900, 350],[900, 150]]))
+                self.boundary.append(self.inv_affline_transformation([[570, 450],[570, 700],[735, 700],[735, 450]]))
+                # task3 except work space [10:13]
+                self.boundary.append(self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]))
+                self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]))
+                self.boundary.append(self.inv_affline_transformation([[400, 150],[400, 350],[900, 350],[900, 150]]))
+
+
+                # Negative Plane
+                # cv2.rectangle(modified_image, (200, 450), (1100, 700), 255, cv2.FILLED)
+                # cv2.rectangle(modified_image, (570, 450),(735, 700), 0, cv2.FILLED)
                 print("===========================================")
                 print("boundary list:")
                 print(self.boundary)
                 print("===========================================")
 
             if self.detect_blocks == True:
-                # current_time = datetime.now()
-                # depth_raw_file_name = "../data/depth_raw/depth_raw" + str(current_time) + ".png"
-                # depth_modified_file_name = "../data/depth_modified/depth_modified" + str(current_time) + ".png"
-                # rgb_img_file_name = "../data/rgb/rgb_img" + str(current_time) + ".png"
-                
-                # cv2.imwrite(depth_raw_file_name, self.DepthFrameRaw)
-                # cv2.imwrite(depth_modified_file_name, depth_img)
-                # cv2.imwrite(rgb_img_file_name, rgb_img)
-                # modified_rgb = cv2.warpPerspective(rgb_img, self.transformation_matrix, (rgb_img.shape[1], rgb_img.shape[0]))
-                # rgb_modified_file_name = "../data/rgb_modified" + str(current_time) + ".png"
-                # cv2.imwrite(rgb_modified_file_name, modified_rgb)
-                self.blocks = detectBlocksUsingCluster(self.VideoFrame.copy(), self.DepthFrameRaw,boundary=self.boundary[0:2])
+                self.blocks = detectBlocksUsingCluster(self.VideoFrame.copy(), self.DepthFrameRaw,boundary=self.boundary[0:2], only_blocks=False)
                 output_image = drawblock(self.blocks, rgb_img, boundary=None)
                 modified_image = cv2.warpPerspective(output_image, self.transformation_matrix, (output_image.shape[1], output_image.shape[0]))
-                # cv2.rectangle(modified_image, (200, 75), (1100, 550), 255, cv2.FILLED)
-                # cv2.rectangle(modified_image, (570, 365),(735, 550), 0, cv2.FILLED)
+                # cv2.rectangle(modified_image, (400, 150), (900, 350), 255, cv2.FILLED)
+                # cv2.rectangle(modified_image, (570, 450),(735, 700), 0, cv2.FILLED)
                 self.GridFrame = modified_image
 
             else:

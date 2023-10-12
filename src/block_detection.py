@@ -95,7 +95,7 @@ def new_detectBlocksColorInRGBImage(frame_rgb, contour):
         return "unknown"
 
 
-def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, semi_circle = False, lower = 850, upper = 1100):
+def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, only_blocks = True, lower = 850, upper = 1100):
     """!
     @brief      Detect blocks and refine their contour using cluster.
                 1. Filter by height to eliminate the robot arm.
@@ -108,7 +108,7 @@ def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, semi_circle = False, 
     @param      rgb_img: image from Video Frame, in form of RGB.
                 depth_raw: depth image from DepthFrameRaw.
                 boundary: boundary of workspace.
-                semi_circle: For task3 & 4, we detect semi-circle first, then cluster the rest.
+                only_blocks: Only detect blocks.
                 lower & upper: Height restriction.
     
     @return     blocks: List of block class.
@@ -124,8 +124,15 @@ def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, semi_circle = False, 
     hsv_mask = cv2.inRange(hsv_img, np.array([0,43,46]), np.array([180, 255, 255]))
     # hsv_mask = cv2.medianBlur(hsv_mask, 3)
     boundary_mask = np.zeros_like(hsv_mask, dtype=np.uint8)
-    cv2.fillPoly(boundary_mask, [boundary[0]], 255)
-    cv2.fillPoly(boundary_mask, [boundary[1]], 0)
+    if boundary != []:
+        if len(boundary) == 2:
+            cv2.fillPoly(boundary_mask, [boundary[0]], 255)
+            cv2.fillPoly(boundary_mask, [boundary[1]], 0)
+        else:
+            cv2.fillPoly(boundary_mask, [boundary[0]], 255)
+            cv2.fillPoly(boundary_mask, [boundary[1]], 0)
+            cv2.fillPoly(boundary_mask, [boundary[2]], 0)
+
     masked_hsv = cv2.bitwise_and(hsv_mask, boundary_mask)
 
     # 3. Find contours and create a subregion for each contour.
@@ -190,7 +197,10 @@ def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, semi_circle = False, 
             n_colors = 4
 
         # 5. Utilize clustering for refining each subregion.
-        refined_region = clusterThroughRgbLabDepth(sub_region, sub_region_depth, n_colors)
+        success, refined_region = clusterThroughRgbLabDepth(sub_region, sub_region_depth, n_colors)
+        
+        if success == False:
+            continue
         
         # 6. Find contours again, return precise position and block type.
         precise_contours, _ = cv2.findContours(refined_region, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -202,7 +212,14 @@ def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, semi_circle = False, 
             
             epsilon = 0.08 * cv2.arcLength(precise_contour, True)
             approx = cv2.approxPolyDP(precise_contour, epsilon, True)
-        
+            if not only_blocks:
+                if len(approx) != 4:
+                    type = "unknown"
+                else:
+                    type = "blocks"
+            else:
+                type = "blocks"
+
             (box_x, box_y), (box_width, box_height), box_angle = cv2.minAreaRect(approx)
             if box_width < box_height:
                 box_width, box_height = box_height, box_width
@@ -214,12 +231,20 @@ def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, semi_circle = False, 
             precise_cy = int(M['m01']/M['m00'])
             precise_cz = sub_region_depth[precise_cy, precise_cx]
 
-            if abs(aspect_ratio - 1) > 0.4 and not stack and M["m00"] > 850:
-                type = "arch"
-            elif M["m00"] < 850:
-                type = "small"
+            if not only_blocks:
+                if type != "unknown":
+                    if abs(aspect_ratio - 1) > 0.4 and not stack and M["m00"] > 850:
+                        type = "unknown"
+                    elif M["m00"] < 850:
+                        type = "small"
+                    else:
+                        type = "big"
             else:
-                type = "big"
+                if M["m00"] < 850:
+                    type = "small"
+                else:
+                    type = "big"
+
             precise_cx = precise_cx + cx - int(sub_region_side/2)
             precise_cy = precise_cy + cy - int(sub_region_side/2)
             precise_contour = precise_contour + np.array([cx - int(sub_region_side/2), cy - int(sub_region_side/2)])
@@ -260,7 +285,8 @@ def clusterThroughRgbLabDepth(rgb_img, depth_raw, n_colors, useHsv = False):
                 useHsv: Use hsv as a characteristic vector.
                 n_colors: number of clusters.
     
-    @return     binary_image: refined region after cluster.
+    @return     success: True or False
+                binary_image: refined region after cluster.
     """
     lab_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2LAB)
 
@@ -279,7 +305,10 @@ def clusterThroughRgbLabDepth(rgb_img, depth_raw, n_colors, useHsv = False):
     kmeans.fit(combined_pixels)
 
     label_counts = Counter(kmeans.labels_)
-    if n_colors > 2:
+
+    blank_image = np.ones(rgb_img.shape, dtype=np.uint8) * 255
+
+    if len(label_counts.most_common()) > 2:
         most_common_label = label_counts.most_common(3)[1][0]
         second_common_label = label_counts.most_common(3)[2][0]
 
@@ -290,7 +319,7 @@ def clusterThroughRgbLabDepth(rgb_img, depth_raw, n_colors, useHsv = False):
         if most_common_count < 400:
             kmeans.labels_[kmeans.labels_ == second_common_label] = most_common_label
     else:
-        most_common_label = label_counts.most_common(2)[1][0]
+        return False, None
 
     blank_image = np.ones(rgb_img.shape, dtype=np.uint8) * 255
     cluster_indices = np.where(kmeans.labels_ == most_common_label)
@@ -299,7 +328,7 @@ def clusterThroughRgbLabDepth(rgb_img, depth_raw, n_colors, useHsv = False):
     gray_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
     _, binary_image = cv2.threshold(gray_image, 254, 255, cv2.THRESH_BINARY_INV)
 
-    return binary_image
+    return True, binary_image
 
 
 def drawblock(blocks, output_img:np.array, boundary = None) -> np.array:
@@ -323,8 +352,14 @@ def drawblock(blocks, output_img:np.array, boundary = None) -> np.array:
         cv2.drawContours(output_img, [block.contour], -1, (255,0,0), 2)
     
     if boundary != None:
-        cv2.fillPoly(output_img, [boundary[0]], 255)
-        cv2.fillPoly(output_img, [boundary[1]], 0)
+        if len(boundary) == 2:
+            cv2.fillPoly(output_img, [boundary[0]], 255)
+            cv2.fillPoly(output_img, [boundary[1]], 0)
+        elif len(boundary) == 3:
+            cv2.fillPoly(output_img, [boundary[0]], 255)
+            cv2.fillPoly(output_img, [boundary[1]], 0)
+            cv2.fillPoly(output_img, [boundary[2]], 0)
+
     cv2.imwrite("../data/result.png", output_img)
     
     return output_img

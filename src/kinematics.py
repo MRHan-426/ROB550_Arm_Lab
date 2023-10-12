@@ -291,26 +291,24 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
 
     # compute theta5 based on different situations
     # isVertical_Pick means rotate the last joint by 90 deg for some situations
-    if isVertical_Pick is True:
-        theta5 = np.pi/2
+
+    if block_ori is None:
+        theta5 = 0
+    elif block_ori < 0:
+        print("[IK ERROR Incorrect Block Orientation]")
+        return False, [0,0,0,0,0]
     else:
-        if block_ori is None:
-            theta5 = 0
-        elif block_ori < 0:
-            print("[IK ERROR Incorrect Block Orientation]")
-            return False, [0,0,0,0,0]
-        else:
-            # last link is vertical or near vertical, change the orientation of the end effector
-            # otherwise keep end effector unrotated
-            if phi > np.pi*0.4:
-                if theta1 > 0:
-                    theta5 = theta1 - block_ori
-                else:
-                    theta1_ref = -theta1
-                    theta5 = np.pi/2 - theta1_ref - block_ori
-            # last link is more horizontal than vertical, use horizontal mode to grab
+        # last link is vertical or near vertical, change the orientation of the end effector
+        # otherwise keep end effector unrotated
+        if phi > np.pi*0.4:
+            if theta1 > 0:
+                theta5 = theta1 - block_ori
             else:
-                theta5 = 0
+                theta1_ref = -theta1
+                theta5 = np.pi/2 - theta1_ref - block_ori
+        # last link is more horizontal than vertical, use horizontal mode to grab
+        else:
+            theta5 = 0
 
 
     # Moving Range Restriction
