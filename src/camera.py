@@ -267,40 +267,46 @@ class Camera():
             self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
 
             if self.cameraCalibrated == True and self.boundary == []:
-                self.boundary.append(self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]))
-                self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]))
                 
-                # TASK ONE
-                self.boundary.append(self.inv_affline_transformation([[200, 75],[200, 540],[1100, 540],[1100, 75]]))
-                self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 545],[735, 545],[735, 365]]))
-                
-                # TASK Three
-                self.boundary.append(self.inv_affline_transformation([[200, 75],[200, 448],[1100, 448],[1100, 75]]))
-                self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 448],[735, 448],[735, 365]]))
-                
+                self.boundary = [
+                    # Whole workspace
+                    (self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]), 1),
+                    (self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]), 0),
+                    # Positive Half
+                    (self.inv_affline_transformation([[200, 75],[200, 540],[1100, 540],[1100, 75]]), 1),
+                    (self.inv_affline_transformation([[570, 365],[570, 545],[735, 545],[735, 365]]), 0),
+                    # Task Three
+                    (self.inv_affline_transformation([[200, 75],[200, 448],[1100, 448],[1100, 75]]), 1),
+                    (self.inv_affline_transformation([[570, 365],[570, 448],[735, 448],[735, 365]]), 0),
+                    (self.inv_affline_transformation([[200, 450],[200, 700],[1100, 700],[1100, 450]]), 1),
+                    (self.inv_affline_transformation([[570, 450],[570, 700],[735, 700],[735, 450]]), 0),
+                    # Work space for task3 [8:10]
+                    (self.inv_affline_transformation([[400, 150],[400, 350],[900, 350],[900, 150]]), 1),
+                    (self.inv_affline_transformation([[570, 450],[570, 700],[735, 700],[735, 450]]), 0),
+                    # task3 except work space [10:13]
+                    (self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]), 1),
+                    (self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]), 0),
+                    (self.inv_affline_transformation([[400, 150],[400, 350],[900, 350],[900, 150]]), 0)
+                ]
 
-                self.boundary.append(self.inv_affline_transformation([[200, 450],[200, 700],[1100, 700],[1100, 450]]))
-                self.boundary.append(self.inv_affline_transformation([[570, 450],[570, 700],[735, 700],[735, 450]]))
-
-                # Work space for task3 [8:10]
-                self.boundary.append(self.inv_affline_transformation([[400, 150],[400, 350],[900, 350],[900, 150]]))
-                self.boundary.append(self.inv_affline_transformation([[570, 450],[570, 700],[735, 700],[735, 450]]))
-                # task3 except work space [10:13]
-                self.boundary.append(self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]))
-                self.boundary.append(self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]))
-                self.boundary.append(self.inv_affline_transformation([[400, 150],[400, 350],[900, 350],[900, 150]]))
-
-
-                # Negative Plane
-                # cv2.rectangle(modified_image, (200, 450), (1100, 700), 255, cv2.FILLED)
-                # cv2.rectangle(modified_image, (570, 450),(735, 700), 0, cv2.FILLED)
+                self.task3boundary = [
+                                    (np.array([[ 217,   25],[ 288,  606],[1055,  590],[1107,  0]]), 1),
+                                    (np.array([[600, 360],[602, 599],[743, 596],[740, 360]]), 0),
+                                    (np.array([[0, 450],[1280, 450],[1280, 720],[0, 720]]), 0),
+                                    (np.array([[0, 0],[400, 0],[400, 200],[0, 200]]), 0),
+                                    (np.array([[410, 220],[600, 234],[600, 500],[410, 500]]), 0),
+                                    (np.array([[642, 152],[804, 153],[792, 275],[642, 275]]), 0),
+                                    (np.array([[920, 315],[1280, 315],[1280, 720],[920, 720]]), 0),
+                                    (np.array([[735, 276],[806, 290],[818, 365],[729, 383]]), 0),
+                                    (np.array([[738, 366],[1280, 366],[1280, 720],[738, 720]]), 0)
+                                    ]
                 print("===========================================")
                 print("boundary list:")
                 print(self.boundary)
                 print("===========================================")
 
             if self.detect_blocks == True:
-                self.blocks = detectBlocksUsingCluster(self.VideoFrame.copy(), self.DepthFrameRaw,boundary=self.boundary[0:2], only_blocks=False)
+                self.blocks = detectBlocksUsingCluster(self.VideoFrame.copy(), self.DepthFrameRaw, boundary=self.task3boundary, only_blocks=True)
                 output_image = drawblock(self.blocks, rgb_img, boundary=None)
                 modified_image = cv2.warpPerspective(output_image, self.transformation_matrix, (output_image.shape[1], output_image.shape[0]))
                 # cv2.rectangle(modified_image, (400, 150), (900, 350), 255, cv2.FILLED)

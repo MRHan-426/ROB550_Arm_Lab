@@ -124,15 +124,11 @@ def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, only_blocks = True, l
     hsv_mask = cv2.inRange(hsv_img, np.array([0,43,46]), np.array([180, 255, 255]))
     # hsv_mask = cv2.medianBlur(hsv_mask, 3)
     boundary_mask = np.zeros_like(hsv_mask, dtype=np.uint8)
-    if boundary != []:
-        if len(boundary) == 2:
-            cv2.fillPoly(boundary_mask, [boundary[0]], 255)
-            cv2.fillPoly(boundary_mask, [boundary[1]], 0)
+    for item in boundary:
+        if item[1] == 1:
+            cv2.fillPoly(boundary_mask, [item[0]], (255,255,255))
         else:
-            cv2.fillPoly(boundary_mask, [boundary[0]], 255)
-            cv2.fillPoly(boundary_mask, [boundary[1]], 0)
-            cv2.fillPoly(boundary_mask, [boundary[2]], 0)
-
+            cv2.fillPoly(boundary_mask, [item[0]], (0,0,0))
     masked_hsv = cv2.bitwise_and(hsv_mask, boundary_mask)
 
     # 3. Find contours and create a subregion for each contour.
