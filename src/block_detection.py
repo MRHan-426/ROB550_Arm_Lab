@@ -126,9 +126,9 @@ def detectBlocksUsingCluster(rgb_img, depth_raw, boundary, only_blocks = True, l
     boundary_mask = np.zeros_like(hsv_mask, dtype=np.uint8)
     for item in boundary:
         if item[1] == 1:
-            cv2.fillPoly(boundary_mask, [item[0]], (255,255,255))
+            cv2.fillPoly(boundary_mask, [item[0]], 255)
         else:
-            cv2.fillPoly(boundary_mask, [item[0]], (0,0,0))
+            cv2.fillPoly(boundary_mask, [item[0]], 0)
     masked_hsv = cv2.bitwise_and(hsv_mask, boundary_mask)
 
     # 3. Find contours and create a subregion for each contour.
@@ -347,14 +347,14 @@ def drawblock(blocks, output_img:np.array, boundary = None) -> np.array:
             cv2.putText(output_img, "stack", (center[0] + 15, center[1]), font, 0.4, (0,255,0), thickness=1)
         cv2.drawContours(output_img, [block.contour], -1, (255,0,0), 2)
     
+    
+    
     if boundary != None:
-        if len(boundary) == 2:
-            cv2.fillPoly(output_img, [boundary[0]], 255)
-            cv2.fillPoly(output_img, [boundary[1]], 0)
-        elif len(boundary) == 3:
-            cv2.fillPoly(output_img, [boundary[0]], 255)
-            cv2.fillPoly(output_img, [boundary[1]], 0)
-            cv2.fillPoly(output_img, [boundary[2]], 0)
+        for item in boundary:
+            if item[1] == 1:
+                cv2.fillPoly(output_img, [item[0]], 255)
+            else:
+                cv2.fillPoly(output_img, [item[0]], 0)
 
     cv2.imwrite("../data/result.png", output_img)
     

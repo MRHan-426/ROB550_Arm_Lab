@@ -473,7 +473,7 @@ class StateMachine():
         displacement = np.array(target_joint_angles) - current_joint_angles
         fisrt_4_elemeent = displacement[:4]
         max_joint_diff = np.max(np.abs(fisrt_4_elemeent))
-        n = int(max_joint_diff//(np.pi/9))
+        n = int(max_joint_diff//(np.pi/15))
         print("middle points number is: ", n)
         # add n points in the trajectory
         if n > 0:
@@ -485,7 +485,7 @@ class StateMachine():
                                             moving_time = move_time, 
                                             accel_time = ac_time,
                                             blocking = False)
-                time.sleep(0.1)
+                time.sleep(0.08)
 
         move_time,ac_time = self.calMoveTime(target_joint_angles,slowmode=slow_mode)
         self.rxarm.arm.set_joint_positions(target_joint_angles,
@@ -527,7 +527,7 @@ class StateMachine():
             
         elif camera_clean:
             self.rxarm.gripper.release()
-            target_joint = [0,-np.pi/3,-np.pi/4,0,0]
+            target_joint = [0,-np.pi/4,-np.pi/6 ,0,0]
         else:
             theta0 = current_joint_angles[0]
             target_joint = [theta0,-np.pi/5,-np.pi/8,np.pi/6,0]
@@ -689,7 +689,7 @@ class StateMachine():
 
 
 
-    def auto_pick(self,target_pos,block_ori,depth = 0, isbig = False, isStack = False, saveTime = False):
+    def auto_pick(self,target_pos,block_ori,depth = 0, isbig = False, isStack = False, saveTime = False,vertical = False):
         """!
         @brief      automatically go to a position and pick the block there
         """
@@ -720,8 +720,8 @@ class StateMachine():
         pos1[2] = pos1[2] + pick_height
         pos3[2] = pos3[2] + pick_height
 
-        reachable1, joint_angles1 = self.loose_pose_compute(tuple(pos1),block_ori=orientation)
-        reachable2, joint_angles2 = self.pose_compute(pos = tuple(pos2),block_ori=orientation)
+        reachable1, joint_angles1 = self.loose_pose_compute(tuple(pos1),block_ori=orientation,isvertical=vertical)
+        reachable2, joint_angles2 = self.pose_compute(pos = tuple(pos2),block_ori=orientation,isvertical=vertical)
         current_joint_angles = self.rxarm.get_positions()
         time.sleep(0.5)
 
@@ -824,6 +824,7 @@ class StateMachine():
         if reachable1 and reachable2:
 
             self.safe_motion(joint_angles1)
+            time.sleep(1)
  
             displacement = np.array(joint_angles2) - np.array(joint_angles1)
             displacement_unit =  displacement
@@ -1709,7 +1710,7 @@ class StateMachine():
                             "blue": [170, -25, 0], "purple": [125, -25, 0]}
 
         color_place_small = {"red": [-350,-25, 0], "orange": [-305,-25, 0],
-                            "yellow": [-260,-25, 0], "green": [-30,-25, 0],
+                            "yellow": [-260,-25, 0], "green": [-215,-25, 0],
                             "blue": [-170,-25, 0], "purple": [-125,-25, 0]}
 
         color_line_big = {"red": False, "orange": False,
@@ -1750,21 +1751,28 @@ class StateMachine():
                 self.auto_pick(target_pos=block_center, depth= block.depth,
                                 block_ori = block_orientation,
                                 isbig=isbig, isStack=block.stack, saveTime=False)
+                # time.sleep(0.5)
+                self.sky_walker()
 
                 if self.rxarm.get_gripper_position() > 0.02:
                     # Big block
                     if not color_line_big[block.color]:
                         target_pos = color_place_big[block.color]
-                        self.sky_walker()
-                        self.auto_place(target_pos= target_pos, target_orientation = np.pi/2,isbig = True, save_time=False, vertical = True)
+
+                        self.auto_place(target_pos= target_pos, target_orientation = 0,isbig = True, save_time=False, vertical = True)
+                        # time.sleep(0.5)
+                        
                         color_line_big[block.color] = True
                         self.sky_walker()
+                        # time.sleep(0.5)
+
 
                     else:
                         print("----------------------We fuck up, something wrong---------------------")
                         self.rxarm.gripper.release()
                         time.sleep(0.5)
                         self.sky_walker()
+                        time.sleep(0.5)
 
                         # detect again
                         break
@@ -1772,22 +1780,26 @@ class StateMachine():
                     # Small block
                     if not color_line_small[block.color]:
                         target_pos = color_place_small[block.color]
-                        self.sky_walker()
-                        self.auto_place(target_pos= target_pos, target_orientation = np.pi/2,isbig = False, save_time=False, vertical = True)
+
+                        self.auto_place(target_pos= target_pos, target_orientation = 0,isbig = False, save_time=False, vertical = True)
                         color_line_small[block.color] = True
                         self.sky_walker()
+                        time.sleep(0.5)
+
 
                     else:
                         print("----------------------We fuck up, something  wrong---------------------")
                         self.rxarm.gripper.release()
                         time.sleep(0.5)
                         self.sky_walker()
+                        time.sleep(0.5)
+
 
                         # detect again
                         break
 
         self.initialize_rxarm()
-        time.sleep(0.5)
+        time.sleep(2)
         self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
                             accel_time=0.5,
                             blocking=True)
@@ -1801,9 +1813,14 @@ class StateMachine():
         self.next_state = "idle"
         print("##################### Stack 'em high Start #####################")
         print("---------------------- Clear Stage1 Start ---------------------")
+        x_big, x_small = 170,-150
+        y_big, y_small = 0,0
+        block_offset = 65
+        big_counter1,small_counter1 = 1,1
+
         while True:
             self.sky_walker(camera_clean=True)
-            time.sleep(0.5)
+            time.sleep(1)
             self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), 
                                                           self.camera.DepthFrameRaw,
                                                           boundary=self.camera.boundary[0:2],
@@ -1811,11 +1828,7 @@ class StateMachine():
             time.sleep(0.1)
             
             isStack = False
-            x_big, x_small = 150,-150
-            y_big, y_small = 20,20
-            block_offset = 65
-            big_counter1,small_counter1 = 1,1
-
+            
             for block in self.camera.blocks:
                 block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
 
@@ -1827,30 +1840,39 @@ class StateMachine():
 
                     if block.type == 'big':
                         self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True,isStack=True,depth=block.depth)
-                        self.sky_walker()
-                        time.sleep(0.2)
-                        if big_counter1 % 2 == 0:
-                            x_big = 150
-                            if self.big_counter1 > 1:
-                                y_big -= block_offset
+                        if self.rxarm.get_gripper_position() <= 0.02:
+                            print("Actually it is a Small block")
+                            self.sky_walker()
+                            time.sleep(0.2)
+                            self.auto_place(target_pos=[x_small,y_small,0],target_orientation = 0,isbig=False,vertical=False)
+                            self.sky_walker()
+                            small_counter1 += 1
+                            x_small -=60
                         else:
-                            x_big += block_offset
-                        self.auto_place(target_pos=[x_big,y_big,0],target_orientation = 0,isbig=True)
-                        self.sky_walker()
-                        big_counter1 += 1
+                            self.sky_walker()
+                            time.sleep(0.2)
+                            self.auto_place(target_pos=[x_big,y_big,0],target_orientation = 0,isbig=True,vertical=False)
+                            self.sky_walker()
+                            big_counter1 += 1
+                            x_big +=65
                     else:
                         self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False,isStack=True,depth=block.depth)
                         time.sleep(0.2)
-                        self.sky_walker()
-                        if small_counter1 % 2 == 0:
-                            x_small = -160
-                            if small_counter1 > 1:
-                                y_small -= block_offset
+                        if self.rxarm.get_gripper_position() >= 0.02:
+                            print("Actually it is a Big block")
+                            self.sky_walker()
+                            time.sleep(0.2)
+                            self.auto_place(target_pos=[x_big,y_big,0],target_orientation = 0,isbig=True,vertical=False)
+                            self.sky_walker()
+                            big_counter1 += 1
+                            x_big +=60
                         else:
-                            x_small -= block_offset
-                        self.auto_place(target_pos=[x_small,y_small,0],target_orientation = 0,isbig=False)
-                        self.sky_walker()
-                        small_counter1 += 1
+                            self.sky_walker()
+                            time.sleep(0.2)
+                            self.auto_place(target_pos=[x_small,y_small,0],target_orientation = 0,isbig=False,vertical=False)
+                            self.sky_walker()
+                            small_counter1 += 1
+                            x_small -=60
                         
                     print("=========== Remove a Stack block Comptele =============")                   
             
@@ -1864,7 +1886,7 @@ class StateMachine():
         while True:
             time.sleep(0.2)
             self.sky_walker(camera_clean=True)
-            time.sleep(1)
+            time.sleep(1.5)
             self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), 
                                                           self.camera.DepthFrameRaw,
                                                           boundary=self.camera.boundary[0:2],
@@ -1877,9 +1899,18 @@ class StateMachine():
             # Sort the list of blocks by color
             blocks = self.camera.blocks
             sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
+            color_counter = {"red": 0, "orange": 0, "yellow": 0, "green": 0, "blue": 0, "purple": 0}
+
             if len(sorted_blocks) == 12:
                 print("Good! There are 12 blocks")
-                break
+                for block in sorted_blocks:
+                    color_counter[block.color] += 1
+                for color in color_counter:
+                    print("color: ",color_counter[color])
+                if all(value == 2 for value in color_counter.values()):
+                    print("Good! There are 2 * 6, that's what we want")
+                    break
+
         print("---------------------- Detect Stage Complete ---------------------")
         
         
@@ -1893,21 +1924,26 @@ class StateMachine():
                 print("================ Small Block No.",small_counter2," ",
                     block.color,"=========================")
                 block_center_copy = list(block_center)
-                block_center_copy[2] = 25
-                self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=False)
+                block_center_copy[2] = 20
+                vertical_pick = False
+                if block_center_copy[1] > -20 and block_center_copy[1] < 25:
+                    vertical_pick = True
+                self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=False,vertical=vertical_pick)
                 self.sky_walker()
                 time.sleep(0.2)
                 if self.rxarm.get_gripper_position() >= 0.02:
                     print("Actually it is a Big block")
-                    self.auto_place(target_pos=[250,275,z_big],target_orientation = 0,isbig=True)
+                    self.auto_place(target_pos=[200,-125,z_big],target_orientation = 0,isbig=True)
                     self.sky_walker()
                     big_counter2 +=1
                     z_big += 38
                 else:
-                    self.auto_place(target_pos=[-250,275,z_small],target_orientation = 0,isbig=False)
+                    time.sleep(1.2)
+                    self.auto_place(target_pos=[-250,-125,z_small],target_orientation = 0,isbig=False)
+                    # self.horizontal_auto_place(target_pos=[-300,-125,z_small])
                     self.sky_walker()
                     small_counter2 += 1
-                    z_small += 25
+                    z_small += 26
 
             elif block.type == "big":
                 print("================ Big Block No.",big_counter2," ",
@@ -1915,23 +1951,27 @@ class StateMachine():
                 block_center_copy = list(block_center)
                 block_center_copy[2] = 35
                 self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=True)
+                time.sleep(0.3)
                 self.sky_walker()
                 time.sleep(0.2)
                 if self.rxarm.get_gripper_position() <= 0.02:
                     print("Actually it is a Small block")
-                    self.auto_place(target_pos=[-250,275,z_small],target_orientation = 0,isbig=False)
+                    time.sleep(1.2)
+                    self.auto_place(target_pos=[-250,-125,z_small],target_orientation = 0,isbig=False)
+                    # self.horizontal_auto_place(target_pos=[-300,-125,z_small])
                     self.sky_walker()
                     small_counter2 +=1
-                    z_big += 25
+                    z_small +=26
                 else:
-                    self.auto_place(target_pos=[250,275,z_big],target_orientation = 0,isbig=True)
+                    self.auto_place(target_pos=[200,-125,z_big],target_orientation = 0,isbig=True)
                     self.sky_walker()
                     big_counter2 += 1
-                    z_small += 38
+                    z_big += 38
+        self.initialize_rxarm()
         time.sleep(1)
         print("---------------------- Stack Stage Complete ---------------------")
         self.initialize_rxarm()
-        time.sleep(0.5)
+        time.sleep(2)
         self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
                             accel_time=0.5,
                             blocking=True)
@@ -2016,13 +2056,16 @@ class StateMachine():
                 self.sky_walker(task5=True)
             elif block_counter >=8:
                 self.sky_walker(task5=True,post_to_left=True)   
+            
+            if block_counter == 12:
+                break
 
             print("============ Coomplet Block NO.",block_counter," =================")
             block_counter = block_counter + 1
 
        
         self.initialize_rxarm()
-        time.sleep(0.5)
+        time.sleep(2)
         self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
                             accel_time=0.5,
                             blocking=True)

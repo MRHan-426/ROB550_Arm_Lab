@@ -202,8 +202,8 @@ def Target_Pos_Compensation(world_pos):
     xy_dist = np.sqrt(np.square(x) + np.square(y))
     if z < 40:
         if xy_dist < 200:
-            x = x * 0.950
-            y = y * 0.950
+            x = x * 0.950 - 3
+            y = y * 0.950 -3
         elif xy_dist < 350:
             x = x * 0.965
             y = y * 0.965
@@ -293,9 +293,9 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
     # isVertical_Pick means rotate the last joint by 90 deg for some situations
     if isVertical_Pick:
         if theta1 >=0:
-            theta5 = -np.pi/2 - theta1
+            theta5 = np.pi/2 - theta1
         else:
-            theta5 = np.pi/2 -np.abs(theta1)
+            theta5 = -np.pi/2 -np.abs(theta1)
     else:
         if block_ori is None:
             theta5 = 0

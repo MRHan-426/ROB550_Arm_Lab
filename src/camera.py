@@ -271,7 +271,7 @@ class Camera():
                 self.boundary = [
                     # Whole workspace
                     (self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]), 1),
-                    (self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]), 0),
+                    (self.inv_affline_transformation([[570, 430],[570, 700],[735, 700],[735, 430]]), 0),
                     # Positive Half
                     (self.inv_affline_transformation([[200, 75],[200, 540],[1100, 540],[1100, 75]]), 1),
                     (self.inv_affline_transformation([[570, 365],[570, 545],[735, 545],[735, 365]]), 0),
@@ -290,7 +290,7 @@ class Camera():
                 ]
 
                 self.task3boundary = [
-                                    (np.array([[ 217,   25],[ 288,  606],[1055,  590],[1107,  0]]), 1),
+                                    (self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]), 1),
                                     (np.array([[600, 360],[602, 599],[743, 596],[740, 360]]), 0),
                                     (np.array([[0, 450],[1280, 450],[1280, 720],[0, 720]]), 0),
                                     (np.array([[0, 0],[400, 0],[400, 200],[0, 200]]), 0),
@@ -306,7 +306,7 @@ class Camera():
                 print("===========================================")
 
             if self.detect_blocks == True:
-                self.blocks = detectBlocksUsingCluster(self.VideoFrame.copy(), self.DepthFrameRaw, boundary=self.task3boundary, only_blocks=True)
+                self.blocks = detectBlocksUsingCluster(self.VideoFrame.copy(), self.DepthFrameRaw, boundary=self.boundary[0:2], only_blocks=True)
                 output_image = drawblock(self.blocks, rgb_img, boundary=None)
                 modified_image = cv2.warpPerspective(output_image, self.transformation_matrix, (output_image.shape[1], output_image.shape[0]))
                 # cv2.rectangle(modified_image, (400, 150), (900, 350), 255, cv2.FILLED)
