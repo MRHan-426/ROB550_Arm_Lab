@@ -973,53 +973,20 @@ class StateMachine():
         """
         target_pos = current_pos.copy()
         xy_distance = np.sqrt(np.square(current_pos[0])+np.square(current_pos[1]))
-        if xy_distance > 250:
-            target_pos[0] = target_pos[0]*(7.0/8.0)
-            target_pos[1] = target_pos[1]*(7.0/8.0)
-            target_pos[2] = 90
+        if xy_distance > 350:
+            target_pos[0] = target_pos[0]*3/4
+            target_pos[1] = target_pos[1]*3/4
+            target_pos[2] = 50
         else:
             target_pos[0] = target_pos[0]*(8.0/7.0)
             target_pos[1] = target_pos[1]*(8.0/7.0)
-            target_pos[2] = 90
+            target_pos[2] = 50
         can_reach,target_joint_angles = self.loose_pose_compute(target_pos,block_ori=0)
 
         if can_reach:
             time.sleep(1)
-            current_joint_angles = self.rxarm.get_positions()
-            displacement = np.array(target_joint_angles) - current_joint_angles
+            self.safe_motion(target_joint_angles)
 
-            if np.max(abs(displacement)) > np.pi/2:
-                
-                displacement_unit = displacement/3
-                pre_pos1 = current_joint_angles + displacement_unit
-                pre_pos2 = current_joint_angles + displacement_unit * 2
-
-                move_time,ac_time = self.calMoveTime(pre_pos1)
-                self.rxarm.arm.set_joint_positions(pre_pos1,
-                                           moving_time = move_time, 
-                                           accel_time = ac_time,
-                                           blocking = True)
-                
-                move_time,ac_time = self.calMoveTime(pre_pos2)
-                self.rxarm.arm.set_joint_positions(pre_pos2,
-                                           moving_time = move_time, 
-                                           accel_time = ac_time,
-                                           blocking = True)
-            elif np.max(abs(displacement)) > np.pi/3:
-
-                displacement_unit = displacement/2
-                pre_pos1 = current_joint_angles + displacement_unit
-                move_time,ac_time = self.calMoveTime(pre_pos1)
-                self.rxarm.arm.set_joint_positions(pre_pos1,
-                                            moving_time = move_time, 
-                                            accel_time = ac_time,
-                                            blocking = True)
-
-            move_time,ac_time = self.calMoveTime(target_joint_angles)
-            self.rxarm.arm.set_joint_positions(target_joint_angles,
-                                           moving_time = move_time, 
-                                           accel_time = ac_time,
-                                           blocking = True)
             time.sleep(0.2)
             final_pos = self.compute_ee_world_pos()
             print("Auto Change Position: reach bomb position: ", final_pos)
@@ -2096,6 +2063,8 @@ class StateMachine():
         print("##################### Stack 'em high Start #####################")
         print("---------------------- Clear Stage1 Start ---------------------")
         while True:
+            self.sky_walker(camera_clean=True)
+            time.sleep(1)
             self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
             time.sleep(1)
 
@@ -2121,15 +2090,15 @@ class StateMachine():
             if not isStack:
                 break     
         time.sleep(0.5)
-        self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
-                            accel_time=0.5,
-                            blocking=True)    
+        self.sky_walker(camera_clean=True)   
         print("---------------------- Clear Stage1 Complete ---------------------")
 
         print("---------------------- Stack Stage Start ---------------------")
         # Detect blocks in the plane
         self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary)
-        time.sleep(1)
+        time.sleep(1.5)
+        self.initialize_rxarm()
+        time.sleep(0.5)
 
         while self.camera.blocks == None:
             print("There is no blocks in the workspace!!")
