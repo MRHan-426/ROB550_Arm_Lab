@@ -391,10 +391,7 @@ if __name__ == '__main__':
     dh_params = parse_dh_param_file(dh_config_file)
     pox_config_file = "config/rx200_pox.csv"
     m_mat, s_lst = parse_pox_param_file(pox_config_file)
-    # -0.73170888  0.320602    0.53689331 -0.0076699   0.01073787 
     # joint_angles = [clamp(-0.73170888),clamp(0.320602),clamp(0.53689331),clamp(-0.0076699),clamp(0.01073787)]
-
-  
     # if np.allclose(T_DH, T_POX, rtol=1e-05, atol=1e-08):
     #     print("POX and DH get the same result, mission complete.")
     # else:
@@ -409,7 +406,3 @@ if __name__ == '__main__':
     T_DH = FK_dh(dh_params=dh_params, joint_angles=joint_angles, link=5)
     T_POX = FK_pox(joint_angles=joint_angles, m_mat=m_mat,s_lst=s_lst)
     print(f"DH Transform Matrix:\n {T_DH}")
-
-
-    # file_path = "example.csv"
-    # plot_joint_angles(file_path)
