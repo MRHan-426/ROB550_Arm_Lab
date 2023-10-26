@@ -9,7 +9,6 @@ import warnings
 warnings.filterwarnings("ignore", message="Trying to unpickle estimator SVC from version", category=UserWarning)
 
 
-font = cv2.FONT_HERSHEY_SIMPLEX
 
 
 class block:
@@ -21,6 +20,7 @@ class block:
         self.color = color
         self.type = type
         self.stack = stack
+        self.world_xyz = np.zeros(3)
 
     # detect whether a point is in a square
     def inArea(self, point):
@@ -36,33 +36,81 @@ class block:
 
 
 class detection:
-    def __init__(self, camera, boundary, lower = 850, upper = 1100):
+    def __init__(self, camera):
         self.blocks = []
         self.camera = camera
+        self.lower = 850
+        self.upper = 1100
+
+        # whole workspace
+        self.boundary = [(np.array([[ 200, 75],[ 1100,  75],[1100,  700],[200,  700]]), 1),
+                        (np.array([[ 565, 437],[ 735,  437],[735,  700],[565,  700]]), 0)]
+        self.only_blocks = True
+        self.rgb_img = self.camera.VideoFrame.copy()
+        self.depth_raw = self.camera.DepthFrameRaw.copy()
+        self.ref_rgb = np.array([[181, 16, 33], # red
+                                [213, 99, 23],  # orange
+                                [219, 249, 25], # yellow
+                                [89, 186, 65],  # green
+                                [32, 53, 186],  # blue
+                                [85, 14, 107]], # purple
+                                dtype=np.uint8)
+        self.ref_lab = cv2.cvtColor(self.ref_rgb[:,None,:], cv2.COLOR_RGB2LAB).squeeze()
+        self.ref_hsv = cv2.cvtColor(self.ref_rgb[:,None,:], cv2.COLOR_RGB2HSV).squeeze()
+        self.ref_vector = np.concatenate((self.ref_rgb, self.ref_lab), axis=1)
+        self.ref_vector_hsv = np.concatenate((self.ref_rgb, self.ref_lab, self.ref_hsv), axis=1)
+        self.color_names = ["red", "orange", "yellow", "green", "blue", "purple"]
+        self.font = cv2.FONT_HERSHEY_SIMPLEX
+
+
+    def run(self, only_blocks = True, boundary = None, lower = 850, upper = 1100):
+        self._reset()
+        self.only_blocks = only_blocks
         self.lower = lower
         self.upper = upper
-        self.boundary = [(np.array([[ 200, 75],[ 1100,  75],[1100,  700],[200,  700]]), 1),
-                        (np.array([[ 565, 437],[ 735,  437],[735,  700],[565,  700]]), 0)] # whole workspace
-        self.rgb_img = self.camera.VideoFrame.copy()
-        self.depth_raw = self.camera.DepthFrameRaw.copy()
-        self.only_blocks = True
-
-    def reset(self):
-        self.blocks = []
-        self.rgb_img = self.camera.VideoFrame.copy()
-        self.depth_raw = self.camera.DepthFrameRaw.copy()
-
-    def run(self, only_blocks = True, boundary = None):
-        self.rgb_img = self.camera.VideoFrame.copy()
-        self.depth_raw = self.camera.DepthFrameRaw.copy()
-        self.only_blocks = only_blocks
         if boundary != None:
             self.boundary = boundary
 
-        self._detectBlocksUsingCluster()
+        self._detect_blocks()
+        self._calculate_block_world_coordinate()
+        print(f"Block Detection Done! Total {len(self.blocks)} Detected.")
 
 
-    def _detectBlocksUsingCluster(self):
+    def drawblock(self, show_boundary = False):
+        """!
+        @brief      Draw blocks for visualization
+
+        @param      show_boundary: when True, draw self.boundary on the image.
+
+        @return     output: image
+        """
+        output = self.rgb_img.copy()
+        for block in self.blocks:
+            cv2.circle(output, (block.center[1], block.center[0]), 2, (0,255,0), -1)
+            cv2.putText(output, str(int(np.rad2deg(block.orientation))), (block.center[1], block.center[0]), self.font, 0.4, (0,255,0), thickness=1)
+            cv2.putText(output, str(block.color), (block.center[1] + 15, block.center[0] - 15), self.font, 0.4, (0,255,0), thickness=1)
+            cv2.putText(output, block.type, (block.center[1] + 15, block.center[0] + 15), self.font, 0.4, (0,255,0), thickness=1)
+            if block.stack:
+                cv2.putText(output, "stack", (block.center[1] + 15, block.center[0]), self.font, 0.4, (0,255,0), thickness=1)
+            cv2.drawContours(output, [block.contour], -1, (255,0,0), 2)
+        
+        if show_boundary:
+            for item in self.boundary:
+                if item[1] == 1:
+                    cv2.fillPoly(output, [item[0]], 255)
+                else:
+                    cv2.fillPoly(output, [item[0]], 0)
+
+        return output
+
+
+    def _reset(self):
+        self.blocks = []
+        self.rgb_img = self.camera.VideoFrame.copy()
+        self.depth_raw = self.camera.DepthFrameRaw.copy()
+
+
+    def _detect_blocks(self):
         """!
         @brief      Detect blocks and refine their contour using cluster.
                     1. Filter by height to eliminate the robot arm.
@@ -275,7 +323,11 @@ class detection:
         if len(label_counts.most_common()) > 2:
             most_common_label = label_counts.most_common(3)[1][0]
             most_common_count = label_counts.most_common(3)[1][1]
-            most_common_center = kmeans.cluster_centers_[most_common_label]
+            if useHsv:
+                most_common_center = kmeans.cluster_centers_[most_common_label, :9]
+            else:
+                most_common_center = kmeans.cluster_centers_[most_common_label, :6]
+
             color = self._detect_color(most_common_center, useHsv = False)
         else:
             return False, None, None
@@ -290,95 +342,16 @@ class detection:
         return True, binary_image, color
 
 
-    # color = self._detect_color(most_common_center, useHsv = False)
-    def _detect_color(self, frame_rgb, contour):
-        # color range
-        frame_lab = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2LAB)
-        frame_hsv = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2HSV)
-
-        color_rgb_mean = np.array([[127, 19, 30], #red
-                                    [164, 66, 5], #orange
-                                    [218, 180, 30], #yellow
-                                    [30, 110, 60], # green
-                                    [5, 60, 110], # blue
-                                    [50, 50, 73]], # purple
-                                    dtype=np.uint8)
-        color_lab_mean = cv2.cvtColor(color_rgb_mean[:,None,:], cv2.COLOR_RGB2LAB).squeeze()
-        color_hsv_mean = cv2.cvtColor(color_rgb_mean[:,None,:], cv2.COLOR_RGB2HSV).squeeze()
-        color_mean = np.concatenate((color_rgb_mean, color_lab_mean, color_hsv_mean), axis=1)
-    
-        # RGB features
-        mask_rgb = np.zeros(frame_rgb.shape[:2], dtype="uint8")
-        cv2.drawContours(mask_rgb, [contour], -1, 255, cv2.FILLED)
-        mean_rgb = np.array(cv2.mean(frame_rgb, mask=mask_rgb)[:3], dtype=np.float32)
-
-
-        # LAB features
-        mask_lab = np.zeros(frame_lab.shape[:2], dtype="uint8")
-        cv2.drawContours(mask_lab, [contour], -1, 255, cv2.FILLED)
-        mean_lab = np.array(cv2.mean(frame_lab, mask=mask_lab)[:3], dtype=np.float32)
-
-
-        # HSV features
-        mask_hsv = np.zeros(frame_hsv.shape[:2], dtype="uint8")
-        cv2.drawContours(mask_hsv, [contour], -1, 255, cv2.FILLED)
-        mean_hsv = np.array(cv2.mean(frame_hsv, mask=mask_hsv)[:3], dtype=np.float32)
-
-
-        features = np.concatenate((mean_rgb, mean_lab, mean_hsv))
-        dist = color_mean - features
-        data = features.tolist()
-
-
-        with open('../data/models/model.pkl', 'rb') as f:
-            model = pickle.load(f)
-        pred = model.predict(features[None, :])
-        data.append(int(pred))
-        if int(pred) == 0:
-            return "red"
-        elif int(pred) == 1:
-            return "orange"
-        elif int(pred) == 2:
-            return "yellow"
-        elif int(pred) == 3:
-            return "green"
-        elif int(pred) == 4:
-            return "blue"
-        elif int(pred) == 5:
-            return "purple"
+    def _detect_color(self, input_vector, useHsv = False):
+        if useHsv:
+            distances = np.linalg.norm(self.ref_vector_hsv - input_vector, axis=1)
         else:
-            return "unknown"
+            distances = np.linalg.norm(self.ref_vector - input_vector, axis=1)
+        closest_color_idx = np.argmin(distances)
+        return self.color_names[closest_color_idx]
 
-
-def drawblock(blocks, output_img:np.array, boundary = None) -> np.array:
-    """!
-    @brief      Draw blocks for visualization
-
-
-    @param      block: information of a block
-                img: output image for visualization
-    """
-    for block in blocks:
-        color = block.color
-        orientation = block.orientation
-        center = block.center[1], block.center[0]
-        cv2.circle(output_img, (center[0], center[1]), 2, (0,255,0), -1)
-        cv2.putText(output_img, str(int(np.rad2deg(orientation))), (center[0], center[1]), font, 0.4, (0,255,0), thickness=1)
-        cv2.putText(output_img, str(color), (center[0] + 15, center[1] - 15), font, 0.4, (0,255,0), thickness=1)
-        cv2.putText(output_img, block.type, (center[0] + 15, center[1] + 15), font, 0.4, (0,255,0), thickness=1)
-        if block.stack:
-            cv2.putText(output_img, "stack", (center[0] + 15, center[1]), font, 0.4, (0,255,0), thickness=1)
-        cv2.drawContours(output_img, [block.contour], -1, (255,0,0), 2)
-    
-    
-    
-    if boundary != None:
-        for item in boundary:
-            if item[1] == 1:
-                cv2.fillPoly(output_img, [item[0]], 255)
-            else:
-                cv2.fillPoly(output_img, [item[0]], 0)
-
-    cv2.imwrite("../data/result.png", output_img)
-    
-    return output_img
+        
+    def _calculate_block_world_coordinate(self):
+        for block in self.blocks:
+            x_y = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0]))[:2]
+            block.world_xyz = np.array((x_y[0], x_y[1], block.depth))
