@@ -2,13 +2,6 @@ import cv2
 import numpy as np
 from sklearn.cluster import KMeans
 from collections import Counter
-from dataclasses import dataclass
-from scipy import stats
-import pickle
-import warnings
-warnings.filterwarnings("ignore", message="Trying to unpickle estimator SVC from version", category=UserWarning)
-
-
 
 
 class block:
