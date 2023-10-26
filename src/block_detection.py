@@ -163,6 +163,7 @@ class detection:
                                     color=color, 
                                     type=type, 
                                     stack=stack)
+                    self.blocks.append(a_block)
                     continue
             else:
                 stack = False
@@ -239,26 +240,26 @@ class detection:
                 break
 
 
-    def _refine_contour(rgb_img, depth_raw, n_colors, useHsv = False):
+    def _refine_contour(self, sub_region, sub_region_depth, n_colors, useHsv = False):
         """!
         @brief      Utilize clustering for refining each subregion.
 
-        @param      rgb_img: subregion of RGB image.
-                    depth_raw: subregion of depth image.
+        @param      sub_region: subregion of RGB image.
+                    sub_region_depth: subregion of depth image.
                     useHsv: Use hsv as a characteristic vector.
                     n_colors: number of clusters.
         
         @return     success: True or False
                     binary_image: refined region after cluster.
+                    color: detect color
         """
-        lab_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2LAB)
-
-        depth_img = cv2.normalize(depth_raw, None, 0, 1, cv2.NORM_MINMAX)
-        rgb_pixels = rgb_img.reshape((-1, 3))
+        lab_img = cv2.cvtColor(sub_region, cv2.COLOR_RGB2LAB)
+        depth_img = cv2.normalize(sub_region_depth, None, 0, 1, cv2.NORM_MINMAX)
+        rgb_pixels = sub_region.reshape((-1, 3))
         lab_pixels = lab_img.reshape((-1, 3))
         depth_pixels = depth_img.reshape((-1, 1))
         if useHsv:
-            hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2HSV)
+            hsv_img = cv2.cvtColor(sub_region, cv2.COLOR_RGB2HSV)
             hsv_pixels = hsv_img.reshape((-1, 3))
             combined_pixels = np.hstack((rgb_pixels, lab_pixels, hsv_pixels, depth_pixels))
         else:
@@ -269,31 +270,27 @@ class detection:
 
         label_counts = Counter(kmeans.labels_)
 
-        blank_image = np.ones(rgb_img.shape, dtype=np.uint8) * 255
+        blank_image = np.ones(sub_region.shape, dtype=np.uint8) * 255
 
         if len(label_counts.most_common()) > 2:
             most_common_label = label_counts.most_common(3)[1][0]
-            second_common_label = label_counts.most_common(3)[2][0]
-
             most_common_count = label_counts.most_common(3)[1][1]
-            second_common_count = label_counts.most_common(3)[2][1] 
-
-            # Combine
-            if most_common_count < 400:
-                kmeans.labels_[kmeans.labels_ == second_common_label] = most_common_label
+            most_common_center = kmeans.cluster_centers_[most_common_label]
+            color = self._detect_color(most_common_center, useHsv = False)
         else:
-            return False, None
+            return False, None, None
 
-        blank_image = np.ones(rgb_img.shape, dtype=np.uint8) * 255
+        blank_image = np.ones(sub_region.shape, dtype=np.uint8) * 255
         cluster_indices = np.where(kmeans.labels_ == most_common_label)
         blank_image.reshape((-1, 3))[cluster_indices] = kmeans.cluster_centers_[most_common_label, :3].astype(np.uint8)
 
         gray_image = cv2.cvtColor(blank_image, cv2.COLOR_BGR2GRAY)
         _, binary_image = cv2.threshold(gray_image, 254, 255, cv2.THRESH_BINARY_INV)
 
-        return True, binary_image
+        return True, binary_image, color
 
 
+    # color = self._detect_color(most_common_center, useHsv = False)
     def _detect_color(self, frame_rgb, contour):
         # color range
         frame_lab = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2LAB)
@@ -351,9 +348,6 @@ class detection:
             return "purple"
         else:
             return "unknown"
-
-
-
 
 
 def drawblock(blocks, output_img:np.array, boundary = None) -> np.array:
