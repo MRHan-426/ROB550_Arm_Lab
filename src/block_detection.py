@@ -196,7 +196,12 @@ class detection:
                     epsilon = 0.08 * cv2.arcLength(raw_contour, True)
                     approx = cv2.approxPolyDP(raw_contour, epsilon, True)
                     _, _, orientation = cv2.minAreaRect(approx)
-                    color = self._detect_color(raw_contour)
+
+                    rgb_vector = self.rgb_img[cy, cx].reshape(3, 1)
+                    lab_vector = cv2.cvtColor(rgb_vector, cv2.COLOR_RGB2LAB).reshape(3, 1)
+                    color_vector = np.vstack((rgb_vector, lab_vector))
+                    color = self._detect_color(color_vector, useHsv=False)
+
                     a_block = block(center=[cy, cx], 
                                     depth=depth_gap, 
                                     orientation=orientation, 
