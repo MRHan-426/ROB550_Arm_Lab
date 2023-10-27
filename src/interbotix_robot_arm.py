@@ -470,3 +470,6 @@ class InterbotixRobot(object):
         self.srv_set_register(cmd=RegisterValuesRequest.SINGLE_MOTOR, motor_name=joint_name, addr_name="Position_P_Gain", value=int(pid_values[0]))
         self.srv_set_register(cmd=RegisterValuesRequest.SINGLE_MOTOR, motor_name=joint_name, addr_name="Position_I_Gain", value=int(pid_values[1]))
         self.srv_set_register(cmd=RegisterValuesRequest.SINGLE_MOTOR, motor_name=joint_name, addr_name="Position_D_Gain", value=int(pid_values[2]))
+
+    # def get_gripper_position(self):
+    # need to change files inside robot arm's ROS package
