@@ -6,7 +6,7 @@ pipeline = rs.pipeline()
 config = rs.config()
 config.enable_stream(rs.stream.accel)
 pipeline.start(config)
-
+# task 1, get extrinsic matrix by hand.
 try:
     for _ in range(30):
         frames = pipeline.wait_for_frames()
