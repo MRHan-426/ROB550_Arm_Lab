@@ -47,7 +47,30 @@ class Camera():
         self.DepthFrameRGB = np.zeros((720,1280, 3)).astype(np.uint8)
         self.tagsCenter = []
         self.tagsNotChange = []
-        self.boundary = []
+        self.boundary = [
+            # Whole workspace
+            (self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]), 1),
+            (self.inv_affline_transformation([[570, 430],[570, 700],[735, 700],[735, 430]]), 0),
+            # Positive Half
+            (self.inv_affline_transformation([[200, 75],[200, 540],[1100, 540],[1100, 75]]), 1),
+            (self.inv_affline_transformation([[570, 365],[570, 545],[735, 545],[735, 365]]), 0),
+            # Task Three
+            (self.inv_affline_transformation([[200, 75],[200, 448],[1100, 448],[1100, 75]]), 1),
+            (self.inv_affline_transformation([[570, 365],[570, 448],[735, 448],[735, 365]]), 0),
+            (self.inv_affline_transformation([[200, 450],[200, 700],[1100, 700],[1100, 450]]), 1),
+            (self.inv_affline_transformation([[570, 450],[570, 700],[735, 700],[735, 450]]), 0),
+            # Work space for task3 [8:10]
+            (self.inv_affline_transformation([[400, 150],[400, 350],[900, 350],[900, 150]]), 1),
+            (self.inv_affline_transformation([[570, 450],[570, 700],[735, 700],[735, 450]]), 0),
+            # task3 except work space [10:13]
+            (self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]), 1),
+            (self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]), 0),
+            (self.inv_affline_transformation([[400, 150],[400, 350],[900, 350],[900, 150]]), 0)
+        ]
+        # print("===========================================")
+        # print("boundary list:")
+        # print(self.boundary)
+        # print("===========================================")
         self.transformation_matrix = np.zeros((3,3))
 
         # mouse clicks & calibration variables
@@ -73,7 +96,6 @@ class Camera():
         self.blocks = []
         self.block_contours = np.array([])
         self.block_detections = np.array([])
-
 
     def processVideoFrame(self):
         """!
@@ -165,11 +187,16 @@ class Camera():
         except:
             return None
 
+    def inv_affline_transformation(self, points: list) -> list:
+        """
+        @brief Perform the inverse affine transformation on a list of points.
 
-    def inv_affline_transformation(self, points:list)->list:
-        """!
-        @brief      compute inv affline for points
+        This method applies the inverse of the affine transformation matrix to a list
+        of points, converting them from transformed coordinates to their original coordinates.
 
+        @param points: A list of points, where each point is represented as [x, y].
+
+        @return list: A list of original points after the inverse transformation.
         """
         inv_transformation_matrix = np.linalg.inv(self.transformation_matrix)
         original_points = []
@@ -181,16 +208,18 @@ class Camera():
             original_points.append([int(original_x), int(original_y)])
         return np.array(original_points)
 
-
     def depth_correction(self, depth_img):
-        """!
-        @brief      Use affline transformation to modify depth image
-
-
-        @param      depth: raw depth image (720, 1280, 1)  
-                    return: gray image (720, 1280, 1)        
         """
+        @brief Perform depth correction on a depth image.
 
+        This method corrects the depth values in a depth image to obtain 3D world coordinates
+        for each pixel.
+
+        @param depth_img: A 2D numpy array representing the depth image.
+
+        @return numpy.ndarray: A 3D numpy array representing the corrected 3D world coordinates
+                            for each pixel.
+        """
         y = np.arange(depth_img.shape[0])
         x = np.arange(depth_img.shape[1])
         mesh_x, mesh_y = np.meshgrid(x, y)
@@ -204,7 +233,6 @@ class Camera():
         points_3d = P_w.T[:, 2].reshape(depth_img.shape[0], depth_img.shape[1], 1)
 
         return points_3d
-
 
     def projectGridInRGBImage(self):
         """!
@@ -229,13 +257,15 @@ class Camera():
                 cv2.circle(modified_image, point_pos, 3, (0, 255, 0), thickness=-1)
             self.VideoFrame = modified_image
 
-
     def birdEyesViewInGridFrame(self):
-        """!
-        @brief      
-                    Use affline transformation to draw bird-eyes view in the GridFrame (User2 in GUI)
-                    
-                    Once calibrited, use exrinsic matrix to finish this task
+        """
+        @brief Perform bird's-eye view transformation on the RGB image.
+
+        This method computes the transformation matrix M for bird's-eye view transformation
+        using image points and corresponding world points. It then applies the transformation
+        to the RGB image to obtain a bird's-eye view image in the grid frame.
+
+        @return None
         """
         rgb_img = self.VideoFrame.copy()
         image_points = np.array(self.tagsNotChange[:4]).astype(np.float32)
@@ -250,55 +280,11 @@ class Camera():
             print(image_points.shape)
             return None
         elif image_points.shape[0] >= 4 and world_points.shape[0] >= 4:
-            # is_empty = np.all(self.transformation_matrix == 0)
-            # if is_empty:
-            #     self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
-            #     print("===========================================")
-            #     print("Transformation matrix:")
-            #     print(self.transformation_matrix)
-            #     print("===========================================")
             self.transformation_matrix = cv2.getPerspectiveTransform(image_points, world_points)
-
-            if self.cameraCalibrated == True and self.boundary == []:
-                
-                self.boundary = [
-                    # Whole workspace
-                    (self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]), 1),
-                    (self.inv_affline_transformation([[570, 430],[570, 700],[735, 700],[735, 430]]), 0),
-                    # Positive Half
-                    (self.inv_affline_transformation([[200, 75],[200, 540],[1100, 540],[1100, 75]]), 1),
-                    (self.inv_affline_transformation([[570, 365],[570, 545],[735, 545],[735, 365]]), 0),
-                    # Task Three
-                    (self.inv_affline_transformation([[200, 75],[200, 448],[1100, 448],[1100, 75]]), 1),
-                    (self.inv_affline_transformation([[570, 365],[570, 448],[735, 448],[735, 365]]), 0),
-                    (self.inv_affline_transformation([[200, 450],[200, 700],[1100, 700],[1100, 450]]), 1),
-                    (self.inv_affline_transformation([[570, 450],[570, 700],[735, 700],[735, 450]]), 0),
-                    # Work space for task3 [8:10]
-                    (self.inv_affline_transformation([[400, 150],[400, 350],[900, 350],[900, 150]]), 1),
-                    (self.inv_affline_transformation([[570, 450],[570, 700],[735, 700],[735, 450]]), 0),
-                    # task3 except work space [10:13]
-                    (self.inv_affline_transformation([[200, 75],[200, 700],[1100, 700],[1100, 75]]), 1),
-                    (self.inv_affline_transformation([[570, 365],[570, 700],[735, 700],[735, 365]]), 0),
-                    (self.inv_affline_transformation([[400, 150],[400, 350],[900, 350],[900, 150]]), 0)
-                ]
-                print("===========================================")
-                print("boundary list:")
-                print(self.boundary)
-                print("===========================================")
-
-            if self.detect_blocks == True:
-                self.blocks = detectBlocksUsingCluster(self.VideoFrame.copy(), self.DepthFrameRaw, boundary=self.boundary[0:2], only_blocks=True)
-                output_image = drawblock(self.blocks, rgb_img, boundary=None)
-                modified_image = cv2.warpPerspective(output_image, self.transformation_matrix, (output_image.shape[1], output_image.shape[0]))
-                # cv2.rectangle(modified_image, (400, 150), (900, 350), 255, cv2.FILLED)
-                # cv2.rectangle(modified_image, (570, 450),(735, 700), 0, cv2.FILLED)
-                self.GridFrame = modified_image
-
-            else:
+            if self.cameraCalibrated == True:
                 modified_image = cv2.warpPerspective(rgb_img, self.transformation_matrix, (rgb_img.shape[1], rgb_img.shape[0]))
                 self.GridFrame = modified_image
 
-     
     def drawTagsInRGBImage(self, msg):
         """
         @brief      Draw tags from the tag detection
