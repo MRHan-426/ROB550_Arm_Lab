@@ -11,15 +11,15 @@ The team members include: Ziqi(Jackie) Han, Siyuan(Lynx) Yin, Hongjiao(Oliver) Q
 
 ## 1. Block Detection
 <p align="center">
-  <img src="https://github.com/MRHan-426/SOSLAM/blob/main/doc/cluster_1.png" alt="image" width="66%" height="auto" />
+  <img src="https://github.com/MRHan-426/ROB550/blob/main/doc/cluster_1.png" alt="image" width="66%" height="auto" />
 </p>
 
 <p align="center">
-  <img src="https://github.com/MRHan-426/SOSLAM/blob/main/doc/result.png" alt="image" width="66%" height="auto" />
+  <img src="https://github.com/MRHan-426/ROB550/blob/main/doc/result.png" alt="image" width="66%" height="auto" />
 </p>
 
 <p align="center">
-  <img src="https://github.com/MRHan-426/SOSLAM/blob/main/doc/detect_algorithm.png" alt="image" width="66%" height="auto" />
+  <img src="https://github.com/MRHan-426/ROB550/blob/main/doc/detect_algorithm.png" alt="image" width="66%" height="auto" />
 </p>
 
 ## 2. Robot Control
