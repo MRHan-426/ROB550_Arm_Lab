@@ -16,7 +16,7 @@ class StateMachine():
     """!
     @brief      This class describes a state machine.
 
-                TODO: Add states and state functions to this class to implement all of the required logic for the armlab
+                Add states and state functions to this class to implement all of the required logic for the armlab
     """
 
     def __init__(self, rxarm, camera):
@@ -47,25 +47,30 @@ class StateMachine():
                           [0.75*np.pi/2,        -0.5,         -0.3,              0.0,     np.pi/2, 1],
                           [np.pi/2,              0.5,          0.3,         -np.pi/3,         0.0, 1],
                           [0.0,                  0.0,          0.0,              0.0,         0.0, 1]]
-        self.node = rclpy.create_node('JB_node')
+        self.detection = detection(self.camera)
         
+        self.node = rclpy.create_node('JB_node')
         self.replay_pub = self.node.create_publisher(
             Int32,
             'JB_replay',
-            10
-        )
-
+            10)
         self.calibrate_pub = self.node.create_publisher(
             Int32,
             'JB_calibrate',
-            10
-        )
+            10)
 
-        self.detect_pub = self.node.create_publisher(
-            Int32,
-            'JB_Detect',
-            10
-        )
+    def initialize_rxarm(self, task = False):
+        """!
+        @brief      Initializes the rxarm.
+        """
+        self.current_state = "initialize_rxarm"
+        self.status_message = "RXArm Initialized!"
+        self.remembered_waypoint = []
+        if not self.rxarm.initialize(task = task):
+            print('Failed to initialize the rxarm')
+            self.status_message = "State: Failed to initialize the rxarm!"
+            time.sleep(5)
+        self.next_state = "idle"
 
     def set_next_state(self, state):
         """!
@@ -135,7 +140,6 @@ class StateMachine():
         
         if self.next_state == "motion_test":
             self.kinematics_motion_test()
-
 
     """Functions run for each state"""
 
@@ -263,7 +267,6 @@ class StateMachine():
         self.replay_pub.publish(msg)
         self.next_state = "idle"
 
-
     def calibrate(self):
         """!
         @brief      Gets the user input to perform the calibration
@@ -279,31 +282,79 @@ class StateMachine():
         self.calibrate_pub.publish(msg)
         self.status_message = "Calibration - Completed Calibration"
 
-
     def detect(self):
-        """!
-        @brief      Detect the blocks. If click again, stop detect.
+        """
+        @brief Perform block detection.
 
-        @rostopic   'JB_detect', Int32, when data is set to 1, start detect.
+        This method toggles the block detection process on and off. When block detection
+        is enabled, it runs the detection process and updates the video frame with the
+        detected blocks. When disabled, it sets the status message to indicate that
+        detection has ended.
+
+        @return None
         """
         self.current_state = "detect"
         self.next_state = "idle"
-        msg = Int32()
 
         self.is_detect = not self.is_detect
         if self.is_detect:
-            msg.data = 1
+            self.detection.run(only_blocks = False)
+            output = self.detection.drawblock(show_boundary = False)
+            self.camera.VideoFrame = output
             self.status_message = "Detect color, position, orientation of blocks"
         else:
-            msg.data = 0
             self.status_message = "Detect End"
+    
+    def kinematics_motion_test(self):
+        self.current_state = "motion_test"
+        self.next_state = "idle"
 
-        self.detect_pub.publish(msg)
+        # Define target points as a list of positions
+        target_points = [
+            [0, 275, 0, np.pi / 2],
+            [-250, 225, 0, np.pi / 2],
+            [-300, 125, 0, np.pi / 2],
+            [-300, 25, 0, np.pi / 2],
+            [-250, -75, 0, np.pi / 2],
+            [-250, -125, 0, np.pi / 2]
+        ]
 
+        for i, target_pos in enumerate(target_points):
+            can_reach, joint_angles = kinematics.IK_geometric(target_pos)
+
+            if can_reach:
+                print(f"Move to point {i + 1}")
+                self.rxarm.set_positions(joint_angles)
+                time.sleep(2)
+                curr_pos = self.rxarm.get_positions()
+                print("Current pos is: ", curr_pos)
+                time.sleep(3)
+
+                # Adjust joint angles if needed
+                joint_angles[1] = -joint_angles[1]
+                joint_angles[2] = -joint_angles[2]
+                joint_angles[3] = -joint_angles[3]
+
+                # Calculate T_DH if needed
+                T_DH = kinematics.FK_dh(dh_params=self.dh_params, joint_angles=joint_angles, link=5)
+                print("T_DH is: ", T_DH)
+            else:
+                print(f"Cannot reach point {i + 1}")
+
+        print("Motion Test Done!")
 
     def calMoveTime(self, target_joint,slowmode = False):
-        """!
-        @brief    calculate the moving time and accelerate time of motion 
+        """
+        @brief Calculate the movement time and acceleration time for reaching a target joint position.
+
+        This method calculates the time required to move the robot arm to a target joint position.
+        It also calculates the acceleration time based on whether slow mode is enabled.
+
+        @param target_joint: A numpy array representing the target joint positions.
+        @param slowmode: If True, slow mode is enabled, which affects the velocity and acceleration profiles.
+                        Defaults to False.
+
+        @return tuple: A tuple containing the total movement time and acceleration time.
         """
         displacement = np.array(target_joint) - self.rxarm.get_positions()
         max_joint_diff = np.max(np.abs(displacement))
@@ -333,7 +384,22 @@ class StateMachine():
                 move_time = 0.4
             ac_time = move_time / 3
             return move_time, ac_time
+    
+    def get_grab_point(self):
+        """!
+        @brief      Judge if it is a valid click point
 
+                    return (x,y,z) of block center in the world frame
+        """
+        self.camera.new_click = False
+        while not self.camera.new_click:
+            time.sleep(0.01)
+
+        for block in self.detection.blocks:
+            if block.inArea(self.camera.last_click):
+                return self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation
+                
+        return None, None
 
     def grab(self):
         """!
@@ -345,7 +411,7 @@ class StateMachine():
             print("Please click detect first, then click grab again!")
             return None
 
-        while self.camera.blocks == None:
+        while not self.detection.blocks:
             print("There is no blocks in the workspace!!")
             time.sleep(1)
 
@@ -371,47 +437,23 @@ class StateMachine():
         self.grab_or_put_down_a_block(click_point=put_down_point, is_grab=False)
         print("Successfully put down the block, mission complete!")
 
-
-    def initialize_rxarm(self, task = False):
-        """!
-        @brief      Initializes the rxarm.
-        """
-        self.current_state = "initialize_rxarm"
-        self.status_message = "RXArm Initialized!"
-        self.remembered_waypoint = []
-        if not self.rxarm.initialize(task = task):
-            print('Failed to initialize the rxarm')
-            self.status_message = "State: Failed to initialize the rxarm!"
-            time.sleep(5)
-        self.next_state = "idle"
-
-
-    def get_grab_point(self):
-        """!
-        @brief      Judge if it is a valid click point
-
-                    return (x,y,z) of block center in the world frame
-        """
-        self.camera.new_click = False
-        while not self.camera.new_click:
-            time.sleep(0.01)
-
-        for block in self.camera.blocks:
-            if block.inArea(self.camera.last_click):
-                return self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation
-                
-        return None, None
-
-
     def grab_or_put_down_a_block(self, click_point, is_grab, ee_orientation = 0):
-        # click_point[0] is np.array
-        # orientation should be in radian, which is the ee_orientation
+        """
+        @brief Perform grabbing or putting down a block operation.
 
+        This method controls the robot arm to either grab or put down a block at the specified
+        click point with the given end-effector orientation.
+
+        @param click_point: A numpy array representing the target click point [x, y, z].
+        @param is_grab: A boolean indicating whether to grab (True) or put down (False) the block.
+        @param ee_orientation: The desired end-effector orientation in radians. Defaults to 0.
+
+        @return None
+        """
         if is_grab:
             pose = [click_point[0], click_point[1], click_point[2] - 10, np.pi/3]
         else:
             pose = [click_point[0], click_point[1], click_point[2] + 30, np.pi/3]
-
 
         if is_grab:
             self.pre_position = pose.copy()
@@ -464,39 +506,73 @@ class StateMachine():
                 self.initialize_rxarm()
                 time.sleep(1)
 
-    def safe_motion(self,target_joint_angles,slow_mode = False):
-        """!
-        @brief      design the trajectory and interpoloate point if the distance is too long 
+    def safe_motion(self, target_joint_angles, slow_mode=False):
+        """
+        @brief Perform safe motion planning for reaching a target joint position.
+
+        This method plans a safe trajectory to reach the target joint angles, and it may
+        interpolate intermediate points if the distance is too long. It takes into account
+        whether slow mode is enabled for motion planning.
+
+        @param target_joint_angles: A numpy array representing the target joint angles.
+        @param slow_mode: If True, slow mode is enabled, which affects the velocity and acceleration profiles.
+                        Defaults to False.
+
+        @return None
         """
         current_joint_angles = self.rxarm.get_positions()
-
         displacement = np.array(target_joint_angles) - current_joint_angles
-        fisrt_4_elemeent = displacement[:4]
-        max_joint_diff = np.max(np.abs(fisrt_4_elemeent))
-        n = int(max_joint_diff//(np.pi/15))
+        first_4_elements = displacement[:4]
+        max_joint_diff = np.max(np.abs(first_4_elements))
+        n = int(max_joint_diff // (np.pi / 15))
         print("middle points number is: ", n)
-        # add n points in the trajectory
+        # Add n points in the trajectory if the distance is too long
         if n > 0:
-            displacement_unit = displacement/n
+            displacement_unit = displacement / n
             for i in range(n):
-                middle_point = current_joint_angles + displacement_unit*i
-                move_time,ac_time = self.calMoveTime(middle_point,slowmode=slow_mode)
+                middle_point = current_joint_angles + displacement_unit * i
+                move_time, ac_time = self.calMoveTime(middle_point, slowmode=slow_mode)
                 self.rxarm.arm.set_joint_positions(middle_point,
-                                            moving_time = move_time, 
-                                            accel_time = ac_time,
-                                            blocking = False)
+                                                moving_time=move_time,
+                                                accel_time=ac_time,
+                                                blocking=False)
                 time.sleep(0.08)
-
-        move_time,ac_time = self.calMoveTime(target_joint_angles,slowmode=slow_mode)
+        move_time, ac_time = self.calMoveTime(target_joint_angles, slowmode=slow_mode)
         self.rxarm.arm.set_joint_positions(target_joint_angles,
-                                        moving_time = move_time, 
-                                        accel_time = ac_time,
-                                        blocking = True)
+                                        moving_time=move_time,
+                                        accel_time=ac_time,
+                                        blocking=True)
         time.sleep(0.1)
-    
+
+    def safe_pos(self):
+        """
+        @brief Move the robot to a safe position and update its status
+        
+        This method moves the robot to a predefined safe position and updates its status accordingly.
+        
+        @param self: The object instance.
+        @return None
+        """
+        self.status_message = "State: Returning to safe position"
+        self.current_state = "safe_pos"
+        safe_pos = [0,0,0,0,0]
+        move_time,ac_time = self.calMoveTime([0,0,0,0,0])
+        self.rxarm.arm.set_joint_positions([0,0,0,0,0],
+                                           moving_time = move_time, 
+                                           accel_time = ac_time,
+                                           blocking = True)
+        print("Safe Pos: Successfully Reach Safe Pos")
+        time.sleep(0.1)
+        self.next_state = "idle"
+
     def compute_ee_world_pos(self):
-        """!
-        @brief      compute end effector world position using DH forward kinematics
+        """
+        @brief Compute the end effector world position using DH forward kinematics.
+
+        This method calculates the world position of the end effector by applying the
+        Denavit-Hartenberg (DH) forward kinematics using the current joint angles.
+
+        @return list: A list containing the [x, y, z] world position of the end effector.
         """
         current_joint_angles = self.rxarm.get_positions()
         T_DH = kinematics.FK_dh(dh_params=self.dh_params, joint_angles=current_joint_angles, link=5)
@@ -505,14 +581,12 @@ class StateMachine():
         world_pos.tolist()
         return world_pos
 
-
-    def sky_walker(self,camera_clean = False, task5 = False, first_to_left = False, post_to_left = False):
+    def sky_walker(self, camera_clean = False, task5 = False, first_to_left = False, post_to_left = False):
         """!
         @brief      raise the arm up to 1: make camera vision clear
                                         2: prevent sweeping other blocks
                                         3: pre-pose for to-the-sky
         """
-
         current_joint_angles = self.rxarm.get_positions()
 
         if task5:
@@ -544,7 +618,6 @@ class StateMachine():
         time.sleep(0.5)
         print("Auto Place: Reach Pos1")
 
-    
     def throw_away(self):
         """!
         @brief      throw something away to the negtive y plane 
@@ -562,9 +635,7 @@ class StateMachine():
         time.sleep(0.5)    
         print("Throw Away: Complete")
 
-        
-
-    def pose_compute(self,pos,block_ori,isvertical = False):
+    def pose_compute(self, pos, block_ori, isvertical = False):
         """!
         @brief      compute end effector pose [x,y,z,phi] given x,y,z 
                     and orientation of the block, for general picking situation 
@@ -606,7 +677,6 @@ class StateMachine():
                     print("Pose Compute: The point that cannot reach is: ", [x,y,z])
                     return False,[0,0,0,0,0]
     
-    
     def loose_pose_compute(self,pos,block_ori,isvertical = False):
         """!
         @brief      compute pose for those pre_positions or not important positions
@@ -619,7 +689,6 @@ class StateMachine():
         phi = np.pi/2
         orientation = block_ori
         can_reach = False
-        
         can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi],block_ori=orientation,isVertical_Pick=isvertical)
         if can_reach:
             print("Loose Pose Compute: Success")
@@ -639,15 +708,25 @@ class StateMachine():
             print("Loose Pose Compute: Failure")
             return False,[0,0,0,0,0]
                 
-
     def horizontal_pose_compute(self,pos,block_ori = 0):
+        """
+        @brief Compute the horizontal pose for a given position.
+
+        This method calculates the joint angles required to achieve a horizontal pose at the
+        specified position [x, y, z] with a given block orientation (phi).
+
+        @param pos: A list representing the target position [x, y, z].
+        @param block_ori: The desired block orientation (phi) in radians. Defaults to 0.
+
+        @return tuple: A tuple containing a boolean indicating whether the pose is reachable,
+                    and the joint angles if reachable, or [0, 0, 0, 0, 0] if not reachable.
+        """
         phi = 0
         can_reach = False
         pos2 = pos[:]
         x = pos2[0]
         y = pos2[1]
         z = pos2[2]
-
 
         can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi])
         if can_reach:
@@ -658,14 +737,24 @@ class StateMachine():
             return False, [0,0,0,0,0]
        
     def horizontal_loose_pose_compute(self,pos,block_ori = 0):
+        """
+        @brief Compute the horizontal pose for a given position.
+
+        This method calculates the joint angles required to achieve a horizontal pose at the
+        specified position [x, y, z] with a given block orientation (phi).
+
+        @param pos: A list representing the target position [x, y, z].
+        @param block_ori: The desired block orientation (phi) in radians. Defaults to 0.
+
+        @return tuple: A tuple containing a boolean indicating whether the pose is reachable,
+                    and the joint angles if reachable, or [0, 0, 0, 0, 0] if not reachable.
+        """
         phi = 0
         can_reach = False
         pos2 = pos[:]
         x = pos2[0]
         y = pos2[1]
         z = pos2[2]
-
-
         can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi])
         if can_reach:
             print("Horizontal Loose Pose Compute: Success")
@@ -677,21 +766,31 @@ class StateMachine():
                 phi = phi + np.pi/180
                 print("Horizontal Loose Pose Compute: Adjust")
                 can_reach,joint_angles = kinematics.IK_geometric([x,y,z,phi])
-
-
                 if can_reach:
                     print("Horizontal Loose Pose Compute: Success")
                     return True,joint_angles
             print("Horizontal Loose Pose Compute: Failure")
             return False, [0,0,0,0,0]
 
+    """Logic Functions for tasks"""
 
+    def auto_pick(self, target_pos, block_ori, depth = 0, isbig = False, isStack = False, saveTime = False, vertical = False):
+        """
+        @brief Automatically go to a position and pick the block there.
 
+        This method automatically plans and executes the motion to pick a block at the specified target
+        position with the given block orientation and parameters such as depth, block size, stacking,
+        and saving time.
 
+        @param target_pos: A list representing the target position [x, y, z].
+        @param block_ori: The desired block orientation in radians.
+        @param depth: The depth parameter (optional). Defaults to 0.
+        @param isbig: A boolean indicating whether the block is big (True) or not (False). Defaults to False.
+        @param isStack: A boolean indicating whether stacking is enabled (True) or not (False). Defaults to False.
+        @param saveTime: A boolean indicating whether to save time during motion (True) or not (False). Defaults to False.
+        @param vertical: A boolean indicating whether the motion is vertical (True) or not (False). Defaults to False.
 
-    def auto_pick(self,target_pos,block_ori,depth = 0, isbig = False, isStack = False, saveTime = False,vertical = False):
-        """!
-        @brief      automatically go to a position and pick the block there
+        @return None
         """
         orientation = block_ori
         
@@ -713,7 +812,6 @@ class StateMachine():
         elif isStack and isbig:
             pick_offset = 30
 
-
         pick_height = 100 # place gripper above block
 
         pos2[2] = pos2[2] - pick_offset
@@ -726,9 +824,7 @@ class StateMachine():
         time.sleep(0.5)
 
         if reachable1 and reachable2:
-
             self.safe_motion(joint_angles1)
-
             # go to the pre-picking point
             move_time,ac_time = self.calMoveTime(joint_angles1)
             self.rxarm.arm.set_joint_positions(joint_angles1,
@@ -737,9 +833,7 @@ class StateMachine():
                                            blocking = False)
             print("Auto Pick: Reach Pos1")
             time.sleep(0.1)
-
             if saveTime:
-        
                 # go the the picking point not using dichotomy
                 move_time,ac_time = self.calMoveTime(joint_angles2)
                 self.rxarm.arm.set_joint_positions(joint_angles2,
@@ -748,15 +842,12 @@ class StateMachine():
                                             blocking = True)
                 print("Auto Pick: Reach Pos2")
                 time.sleep(0.1)
-            
             else:
-
                 # go to the picking point using dichotomy 
                 displacement = np.array(joint_angles2) - np.array(joint_angles1)
                 displacement_unit =  displacement
                 temp_joint = np.array(joint_angles1)
                 last_effort = self.rxarm.get_efforts()       
-            
                 for i in range(4):
                     displacement_unit = displacement_unit / 2
                     temp_joint = temp_joint + displacement_unit
@@ -766,22 +857,18 @@ class StateMachine():
                                             accel_time = ac_time,
                                             blocking = True)
                     time.sleep(0.1)
-
                     effort = self.rxarm.get_efforts()
                     effort_difference = (effort - last_effort)[1:3]
                     last_effort = effort
                     effort_diff_norm = np.linalg.norm(effort_difference)
-                    
                     if i > 2 and effort_diff_norm > 50:
                         print("Auto Pick: Effort difference is: ", effort_diff_norm)
                         print("Auto Pick: Reach Pos2 in advance")
                         break
-               
             print("Auto Pick: Reach Pos2")
             # close the gripper and pick the block
             self.rxarm.gripper.grasp()
             time.sleep(1)
-
             self.safe_motion(joint_angles1)
             print("Auto Pick: Reach Pos3")
             print("Auto Pick: Success")
@@ -790,11 +877,22 @@ class StateMachine():
             print("Auto Pick: Unreachable Position!")
             time.sleep(0.1)
 
+    def auto_place(self, target_pos, target_orientation, isbig = False, save_time = False, isTask5 = False, vertical = False):
+        """
+        @brief Automatically go to a position and place the block there.
 
+        This method automatically plans and executes the motion to place a block at the specified target
+        position with the given block orientation and parameters such as block size, saving time, and
+        whether it is a Task 5 operation.
 
-    def auto_place(self,target_pos,target_orientation, isbig = False,save_time = False,isTask5 = False, vertical = False):
-        """!
-        @brief      automatically go to a position and place the block there
+        @param target_pos: A list representing the target position [x, y, z].
+        @param target_orientation: The desired block orientation in radians.
+        @param isbig: A boolean indicating whether the block is big (True) or not (False). Defaults to False.
+        @param save_time: A boolean indicating whether to save time during motion (True) or not (False). Defaults to False.
+        @param vertical: A boolean indicating whether the motion is vertical (True) or not (False). Defaults to False.
+        @param isTask5: A boolean indicating whether it is a Task 5 operation (True) or not (False). Defaults to False.
+
+        @return None
         """
         orientation = target_orientation
         target_pos = kinematics.Target_Pos_Compensation(list(target_pos))
@@ -822,15 +920,12 @@ class StateMachine():
         time.sleep(0.5)
 
         if reachable1 and reachable2:
-
             self.safe_motion(joint_angles1)
             time.sleep(1)
- 
             displacement = np.array(joint_angles2) - np.array(joint_angles1)
             displacement_unit =  displacement
             temp_joint = np.array(joint_angles1)
             last_effort = self.rxarm.get_efforts()
-
             if save_time:
                 # not using dichotomy
                 move_time,ac_time = self.calMoveTime(joint_angles2)
@@ -851,29 +946,23 @@ class StateMachine():
                                                accel_time = ac_time,
                                                blocking = True)
                     time.sleep(0.1)
-
                     effort = self.rxarm.get_efforts()
                     effort_difference = (effort - last_effort)[1:3]
                     last_effort = effort
                     effort_diff_norm = np.linalg.norm(effort_difference)
-                
                     if i > 2 and effort_diff_norm > 50:
                         print("Auto Place: Effort difference is: ", effort_diff_norm)
                         print("Auto Place: Reach Pos2 in advance")
                         break
-                    
                 print("Auto Place: Reach Pos2")
             time.sleep(0.3)
             self.rxarm.gripper.release()
-            
-
             if isTask5:
                 time.sleep(0.5)
                 self.rxarm.gripper.grasp()
                 time.sleep(1)
                 self.rxarm.gripper.release()
                 time.sleep(1)
-
             self.safe_motion(joint_angles1)
             print("Auto Place: Reach Pos3")
             print("Auto Place: Success")
@@ -881,19 +970,24 @@ class StateMachine():
             print("Auto Place: Unreachable Position!")
             time.sleep(0.2)
 
-    def horizontal_auto_place(self,target_pos,superhigh = False,isTask5 = False):
-        """!
-        @brief      automatically go to a position and horizontally place the block there
+    def horizontal_auto_place(self, target_pos, superhigh = False, isTask5 = False):
+        """
+        @brief Automatically go to a position and horizontally place the block there.
+
+        This method automatically plans and executes the horizontal motion to place a block at the specified target
+        position with the given parameters such as block size, superhigh placement, and whether it is a Task 5 operation.
+
+        @param target_pos: A list representing the target position [x, y, z].
+        @param superhigh: A boolean indicating whether to perform superhigh placement (True) or not (False). Defaults to False.
+        @param isTask5: A boolean indicating whether it is a Task 5 operation (True) or not (False). Defaults to False.
+
+        @return None
         """
         target_pos = kinematics.Target_Pos_Compensation(list(target_pos))
-
-
         # pos1 is pre_post position, pos2 is pick position, pos3 is post_pick position
         pos1 = list(target_pos[:])
         pos2 = list(target_pos[:])
         pos3 = list(target_pos[:])
-
-
         # compensation for block height
         place_offset = 20
         place_height = 90 # place gripper above block
@@ -914,16 +1008,11 @@ class StateMachine():
 
         current_joint_angles = self.rxarm.get_positions()
         if reachable1 and reachable2:
-           
             self.safe_motion(joint_angles1)
- 
             displacement = np.array(joint_angles2) - np.array(joint_angles1)
             displacement_unit =  displacement
             temp_joint = np.array(joint_angles1)
             last_effort = self.rxarm.get_efforts()
-
-
-           
             # Use dichotomy to place the block accurately
             for i in range(10):
                 displacement_unit = displacement_unit / 2
@@ -934,8 +1023,6 @@ class StateMachine():
                                             accel_time = ac_time,
                                             blocking = True)
                 time.sleep(0.1)
-
-
                 effort = self.rxarm.get_efforts()
                 effort_difference = (effort - last_effort)[1:3]
                 last_effort = effort
@@ -957,7 +1044,6 @@ class StateMachine():
                 self.rxarm.gripper.release()
                 time.sleep(1)
 
-
             self.safe_motion(joint_angles1)
             print("Auto Place: Reach Pos3")
             time.sleep(0.1)
@@ -966,11 +1052,18 @@ class StateMachine():
             print("Auto Place: Unreachable Position!")
             time.sleep(0.2)
 
-
-    
     def auto_change_position(self,current_pos):
-        """!
-        @brief      if the block is stack two high, pick the top one and place it to the ground
+        """
+        @brief Automatically go to a position and horizontally place the block there.
+
+        This method automatically plans and executes the horizontal motion to place a block at the specified target
+        position with the given parameters such as block size, superhigh placement, and whether it is a Task 5 operation.
+
+        @param target_pos: A list representing the target position [x, y, z].
+        @param superhigh: A boolean indicating whether to perform superhigh placement (True) or not (False). Defaults to False.
+        @param isTask5: A boolean indicating whether it is a Task 5 operation (True) or not (False). Defaults to False.
+
+        @return None
         """
         target_pos = current_pos.copy()
         xy_distance = np.sqrt(np.square(current_pos[0])+np.square(current_pos[1]))
@@ -997,159 +1090,6 @@ class StateMachine():
             print("Auto Change Position: Success")
         else:
             print("Auto Change Position: Failure")
-  
-
-
-
-    def kinematics_motion_test(self):
-        self.current_state = "motion_test"
-        self.next_state = "idle"
-
-        point1 = kinematics.Target_Pos_Compensation([0,275,0])
-        point1 = [point1[0],point1[1],point1[2],np.pi/2]
-        point2 = kinematics.Target_Pos_Compensation([-250,225,0])
-        point2 = [point2[0],point2[1],point2[2],np.pi/2]
-        point3 = kinematics.Target_Pos_Compensation([-300,125,0])
-        point3 = [point3[0],point3[1],point3[2],np.pi/2]
-        point4 = kinematics.Target_Pos_Compensation([-300,25,0])
-        point4 = [point4[0],point4[1],point4[2],np.pi/2]
-        point5 = kinematics.Target_Pos_Compensation([-250,-75,0])
-        point5 = [point5[0],point5[1],point5[2],np.pi/2]
-        point6 = kinematics.Target_Pos_Compensation([-250,-125,0])
-        point6 = [point6[0],point6[1],point6[2],np.pi/2]
-
-        can_reach1,joint_angles1 = kinematics.IK_geometric(point1)
-        can_reach2,joint_angles2 = kinematics.IK_geometric(point2)
-        can_reach3,joint_angles3 = kinematics.IK_geometric(point3)
-        can_reach4,joint_angles4 = kinematics.IK_geometric(point4)
-        can_reach5,joint_angles5 = kinematics.IK_geometric(point4)
-        can_reach6,joint_angles6 = kinematics.IK_geometric(point4)
-
-        if can_reach1:
-            print("move to point1")
-            # joint_angles1 = kinematics.Joint_Pos_Compensation(joint_angles1)
-            # move_time,ac_time = self.calMoveTime(joint_angles1)
-            # self.rxarm.arm.set_joint_positions(joint_angles1,
-            #                                    moving_time = move_time,
-            #                                    accel_time = ac_time,
-            #                                    blocking = True)
-            # curr_pos = self.rxarm.get_positions()
-            # print("current pos is: ",curr_pos)
-            self.rxarm.set_positions(joint_angles1)
-            time.sleep(2)
-            time.sleep(3)
-            joint_angles1 = self.rxarm.get_positions()
-            joint_angles1[1] = -joint_angles1[1]
-            joint_angles1[2] = -joint_angles1[2]
-            joint_angles1[3] = -joint_angles1[3]
-            # T_DH = kinematics.FK_dh(dh_params=self.dh_params, joint_angles=joint_angles1, link=5)
-            # print("T_DH is: ",T_DH)
-            pos = self.compute_ee_world_pos()
-
-
-        if can_reach2:
-            print("move to point2")
-            # joint_angles2 = kinematics.Joint_Pos_Compensation(joint_angles2)
-            # move_time,ac_time = self.calMoveTime(joint_angles2)
-            # self.rxarm.arm.set_joint_positions(joint_angles2,
-            #                                 moving_time = move_time,
-            #                                 accel_time = ac_time,
-            #                                 blocking = True)
-            self.rxarm.set_positions(joint_angles2)
-            time.sleep(2)
-            curr_pos = self.rxarm.get_positions()
-            print("current pos is: ",curr_pos)
-            time.sleep(3)
-            joint_angles2 = self.rxarm.get_positions()
-            joint_angles2[1] = -joint_angles2[1]
-            joint_angles2[2] = -joint_angles2[2]
-            joint_angles2[3] = -joint_angles2[3]
-            T_DH = kinematics.FK_dh(dh_params=self.dh_params, joint_angles=joint_angles2, link=5)
-            print("T_DH is: ",T_DH)
-            
-
-        if can_reach3:
-            print("move to point3")
-            # joint_angles3 = kinematics.Joint_Pos_Compensation(joint_angles3)
-            # move_time,ac_time = self.calMoveTime(joint_angles3)
-            # self.rxarm.arm.set_joint_positions(joint_angles3,
-            #                                 moving_time = move_time,
-            #                                 accel_time = ac_time,
-            #                                 blocking = True)
-            self.rxarm.set_positions(joint_angles3)
-            time.sleep(2)
-            curr_pos = self.rxarm.get_positions()
-            print("current pos is: ",curr_pos)
-            time.sleep(5)
-            joint_angles3 = self.rxarm.get_positions()
-            joint_angles3[1] = -joint_angles3[1]
-            joint_angles3[2] = -joint_angles3[2]
-            joint_angles3[3] = -joint_angles3[3]
-            T_DH = kinematics.FK_dh(dh_params=self.dh_params, joint_angles=joint_angles3, link=5)
-            print("T_DH is: ",T_DH)
-
-        if can_reach4:
-            print("move to point4")
-            # move_time,ac_time = self.calMoveTime(joint_angles4)
-            # self.rxarm.arm.set_joint_positions(joint_angles4,
-            #                                 moving_time = move_time,
-            #                                 accel_time = ac_time,
-            #                                 blocking = True)
-            self.rxarm.set_positions(joint_angles4)
-            time.sleep(2)
-            curr_pos = self.rxarm.get_positions()
-            print("current pos is: ",curr_pos)
-            time.sleep(3)
-            joint_angles4 = self.rxarm.get_positions()
-            T_DH = kinematics.FK_dh(dh_params=self.dh_params, joint_angles=joint_angles4, link=5)
-            print("T_DH is: ",T_DH)
-        
-        if can_reach5:
-            print("move to point2")
-            self.rxarm.set_positions(joint_angles5)
-            time.sleep(2)
-            curr_pos = self.rxarm.get_positions()
-            print("current pos is: ",curr_pos)
-            time.sleep(3)
-            joint_angles2 = self.rxarm.get_positions()
-            joint_angles2[1] = -joint_angles2[1]
-            joint_angles2[2] = -joint_angles2[2]
-            joint_angles2[3] = -joint_angles2[3]
-            T_DH = kinematics.FK_dh(dh_params=self.dh_params, joint_angles=joint_angles2, link=5)
-            print("T_DH is: ",T_DH)
-
-        if can_reach6:
-            print("move to point2")
-            self.rxarm.set_positions(joint_angles6)
-            time.sleep(2)
-            curr_pos = self.rxarm.get_positions()
-            print("current pos is: ",curr_pos)
-            time.sleep(3)
-            joint_angles2 = self.rxarm.get_positions()
-            joint_angles2[1] = -joint_angles2[1]
-            joint_angles2[2] = -joint_angles2[2]
-            joint_angles2[3] = -joint_angles2[3]
-            T_DH = kinematics.FK_dh(dh_params=self.dh_params, joint_angles=joint_angles2, link=5)
-            print("T_DH is: ",T_DH)
-        
-        print("Motion Test Done!")
-
-
-
-    def safe_pos(self):
-        self.status_message = "State: Returning to safe position"
-        self.current_state = "safe_pos"
-        safe_pos = [0,0,0,0,0]
-        move_time,ac_time = self.calMoveTime([0,0,0,0,0])
-        self.rxarm.arm.set_joint_positions([0,0,0,0,0],
-                                           moving_time = move_time, 
-                                           accel_time = ac_time,
-                                           blocking = True)
-        print("Safe Pos: Successfully Reach Safe Pos")
-        time.sleep(0.1)
-        self.next_state = "idle"
-
-
 
     # Event 1:Pick'n sort!
     def pick_n_sort(self,istask3 = False):
@@ -1162,34 +1102,29 @@ class StateMachine():
         self.small_counter, self.big_counter = 0,0
         self.small_x , self.big_x = -160,160
         self.small_y,self.big_y = 25,25
-
         if istask3:
             block_offset = 80
             safe_area_y = 0
             boundary = self.camera.boundary[4:6]
-
         else:
             boundary = self.camera.boundary[2:4]
             block_offset = 70
             safe_area_y = 0
-
         # 1st time deal with 2 floor blocks, 2nd time deal with general blocks
         while True:
             # Detect blocks in the plane
-            self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=boundary)
+            self.detection.run(only_blocks = True, boundary = boundary)
             time.sleep(1)
-            while self.camera.blocks == None:
+            while not self.detection.blocks:
                 print("There is no blocks in the workspace!!")
                 time.sleep(1)
             
             # all_block_in_neg_plane = True
             valid_blocks = []
-            for block in self.camera.blocks:
+            for block in self.detection.blocks:
                 if block.type == "small" or block.type == "big":
                     valid_blocks.append(block)
-                    # block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
-                    # if block_center[1] > 0:
-                    #     all_block_in_neg_plane = False
+
             if valid_blocks == []:
                 break
 
@@ -1197,36 +1132,21 @@ class StateMachine():
             self.initialize_rxarm()
             time.sleep(2)
 
-            # for block in self.camera.blocks:
+            # for block in self.detection.blocks:
             for block in valid_blocks:
-
-                block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
-
-                if block_center[2] < 150: 
+                if block.depth < 150: 
                     print("--------------------- start a block:No.",self.block_number_counter,"---------------------------")
                     print("block_depth", block.depth)
 
-                    # Move small blocks in right plane to left planet
-                    # if block_center[2] > 65:
-                        # if it's stack 2 high, place the top one first
-                        # print("=========== Stack Two ",block_center," =============")
-                        # self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=(block.type == "big"))
-                                                
-                        # time.sleep(0.2)
-                        # current_position = self.compute_ee_world_pos()
-                        # self.auto_change_position(current_pos=current_position)
-                        # print("=========== Stack Two Comptele =============")
-                    
-                    # else:
                     # if it's stack 1 high, pick and place normally
                     if block.type == "small":
-                        if block_center[0] >= 0 or block_center[1] >= safe_area_y:
-                            print("=========== Small ",block_center," =============")
+                        if block.world_xyz[0] >= 0 or block.world_xyz[1] >= safe_area_y:
+                            print("=========== Small ",block.world_xyz," =============")
                             if block.stack == False:
-                                block_center[2] = 25
+                                block.depth = 25
                             else:
-                                block_center[2] = block.depth
-                            self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False, isStack = block.stack, depth=block.depth)
+                                block.depth = block.depth
+                            self.auto_pick(target_pos= block.world_xyz, block_ori = block.orientation, isbig=False, isStack = block.stack, depth=block.depth)
                             time.sleep(0.2)
                             print("gripper position:", self.rxarm.get_gripper_position())
 
@@ -1256,13 +1176,13 @@ class StateMachine():
                                 self.block_number_counter += 1
                     # Move big blocks in left plane to right plane
                     elif block.type == "big":
-                        if block_center[0] <= 0 or block_center[1] >= safe_area_y:
-                            print("=========== Big ",block_center," =============")
+                        if block.world_xyz[0] <= 0 or block.world_xyz[1] >= safe_area_y:
+                            print("=========== Big ",block.world_xyz," =============")
                             if block.stack == False:
-                                block_center[2] = 38
+                                block.depth = 38
                             else:
-                                block_center[2] = block.depth
-                            self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True ,isStack = block.stack, depth = block.depth)
+                                block.depth = block.depth
+                            self.auto_pick(target_pos=block.world_xyz,block_ori = block.orientation ,isbig=True ,isStack = block.stack, depth = block.depth)
                             time.sleep(0.2)
                             print("gripper position:", self.rxarm.get_gripper_position())
 
@@ -1275,7 +1195,6 @@ class StateMachine():
                                         self.small_y -= block_offset
                                 else:
                                     self.small_x -= block_offset
-
 
                                 self.auto_place(target_pos=[self.small_x,self.small_y,0],target_orientation = 0,isbig=False,save_time=True)
                                 self.small_counter += 1
@@ -1293,235 +1212,14 @@ class StateMachine():
                                 self.big_counter +=1
                                 self.block_number_counter += 1
                     time.sleep(0.2)
-                    # self.initialize_rxarm()
-                    # time.sleep(0.5)
-                    # self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
-                    #         accel_time=0.5,
-                    #         blocking=True)
                     print("--------------------- end a block ---------------------------")
-                    # self.safe_pos()
-                else:
-                    print("This is April Tag!")
+
         self.initialize_rxarm()
         time.sleep(0.5)
         self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
                           accel_time=0.5,
                           blocking=True)
         print("##################### Pick 'n sort finished #####################")    
-
-
-    # Event 2 difficult (deprecated):Pick'n stack!
-    def pick_n_stack_9_blocks(self):
-        self.current_state = "pick_n_stack"
-        self.next_state = "idle"
-        print("##################### Pick 'n stack Start #####################")
-               
-        self.block_number_counter = 1
-        self.small_counter,self.big_counter,stack3_count = 0,0,0
-        self.small_x , self.big_x = -250,250
-        self.small_y,  self.big_y = -85,-85
-        stack3_x = 150
-        stack3_y = -75
-        self.small_z,self.big_z,stack3_z = 0,0,0
-
-        # 1st time deal with 2 floor blocks, 2nd time deal with general blocks
-        while True:
-            # Detect blocks in the plane
-            self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary[2:4])
-            time.sleep(1)
-
-            while self.camera.blocks == None:
-                print("There is no blocks in the workspace!!")
-                time.sleep(1)
-            
-            # all_block_in_neg_plane = True
-            valid_blocks = []
-            for block in self.camera.blocks:
-                if block.type == "small" or block.type == "big":
-                    valid_blocks.append(block)
-                    # block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
-                    # if block_center[1] > 0:
-                    #     all_block_in_neg_plane = False
-            if valid_blocks == []:
-                break
-            # from big to small, stack three
-            valid_blocks.sort(key=lambda block: block.stack)
-            has_big = False
-            has_stack = False
-            for block in valid_blocks:
-                if block.type == "big":
-                    has_big = True
-                if block.stack == True:
-                    has_stack = True
-
-            # Initialize place positions - x coordinates
-            self.initialize_rxarm()
-            time.sleep(2)
-
-            if has_stack:
-                for block in valid_blocks:
-                    block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation                    
-                    block_center[2] = block.depth
-                    if block.stack == True:
-                        # if it's stack 2 high, place the top one first
-                        print("=========== Stack Two ",block_center," =============")
-                        if block.type == "small":
-                            self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False, isStack=block.stack, depth=block.depth)
-                            time.sleep(0.2)
-                            current_position = self.compute_ee_world_pos()
-                            self.auto_change_position(current_pos=current_position)
-                            print("=========== Stack Two Comptele =============")
-                        else:
-                            print("=========== Big ",block_center," =============")
-                            self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True, depth=block.depth)
-                            time.sleep(0.2)
-                            if self.rxarm.get_gripper_position() < 0.02:
-                                print("Actually it is a small block")
-                                if self.small_counter >= 3:
-                                    self.auto_place(target_pos=[stack3_x,stack3_y,stack3_z],target_orientation = 0,isbig=False,save_time=True)
-                                    stack3_count += 1
-                                    self.block_number_counter += 1
-                                    stack3_z += 25
-                                else:
-                                    self.auto_place(target_pos=[self.small_x,self.small_y,self.small_z],target_orientation = 0,isbig=False,save_time=True)
-                                    self.small_counter += 1
-                                    self.block_number_counter += 1
-                                    self.small_z += 25
-                            if self.big_counter >= 3:
-                                self.auto_place(target_pos=[stack3_x,stack3_y,stack3_z],target_orientation = 0,isbig=True,save_time=True)
-                                stack3_count += 1
-                                self.block_number_counter += 1
-                                stack3_z += 38
-                            self.auto_place(target_pos=[self.big_x,self.big_y,self.big_z],target_orientation = 0,isbig=True,save_time=True)
-                            self.big_counter +=1
-                            self.block_number_counter += 1
-                            self.big_z += 38                     
-                    else:
-                        if block.type == "big":
-                            if block.stack == False:
-                                block_center[2] = 38
-                            self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True)
-                            time.sleep(0.2)
-                            if self.rxarm.get_gripper_position() < 0.02:
-                                print("Actually it is a small block")
-                                if self.small_counter >= 3:
-                                    self.auto_place(target_pos=[stack3_x,stack3_y,stack3_z],target_orientation = 0,isbig=False,save_time=True)
-                                    stack3_count += 1
-                                    self.block_number_counter += 1
-                                    stack3_z += 25
-                                else:
-                                    self.auto_place(target_pos=[self.small_x,self.small_y,self.small_z],target_orientation = 0,isbig=False,save_time=True)
-                                    self.small_counter += 1
-                                    self.block_number_counter += 1
-                                    self.small_z += 25
-                            if self.big_counter >= 3:
-                                self.auto_place(target_pos=[stack3_x,stack3_y,stack3_z],target_orientation = 0,isbig=True,save_time=True)
-                                stack3_count += 1
-                                self.block_number_counter += 1
-                                stack3_z += 38
-                            self.auto_place(target_pos=[self.big_x,self.big_y,self.big_z],target_orientation = 0,isbig=True,save_time=True)
-                            self.big_counter +=1
-                            self.block_number_counter += 1
-                            self.big_z += 38
-                        else:
-                            pass # we don't stack small blocks unless there is no big block
-                self.initialize_rxarm()
-                time.sleep(0.5)
-                self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
-                    accel_time=0.5,
-                    blocking=True)
-                continue
-            
-            if has_big:
-                for block in valid_blocks:
-                    block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
-                    
-                    if block.type == "big":
-                        if block_center[0] <= 0 or block_center[1] >= 0:
-                            print("=========== Big ",block_center," =============")
-                            if block.stack == False:
-                                block_center[2] = 38
-                            self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True)
-                            time.sleep(0.2)
-                            if self.rxarm.get_gripper_position() < 0.02:
-                                print("Actually it is a small block")
-                                if self.small_counter >= 3:
-                                    self.auto_place(target_pos=[stack3_x,stack3_y,stack3_z],target_orientation = 0,isbig=False,save_time=True)
-                                    stack3_count += 1
-                                    self.block_number_counter += 1
-                                    stack3_z += 25
-                                else:
-                                    self.auto_place(target_pos=[self.small_x,self.small_y,self.small_z],target_orientation = 0,isbig=False,save_time=True)
-                                    self.small_counter += 1
-                                    self.block_number_counter += 1
-                                    self.small_z += 25
-                            if self.big_counter >= 3:
-                                self.auto_place(target_pos=[stack3_x,stack3_y,stack3_z],target_orientation = 0,isbig=True,save_time=True)
-                                stack3_count += 1
-                                self.block_number_counter += 1
-                                stack3_z += 38
-                            self.auto_place(target_pos=[self.big_x,self.big_y,self.big_z],target_orientation = 0,isbig=True,save_time=True)
-                            self.big_counter +=1
-                            self.block_number_counter += 1
-                            self.big_z += 38
-                    else:
-                        continue
-                self.initialize_rxarm()
-                time.sleep(0.5)
-                self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
-                        accel_time=0.5,
-                        blocking=True)
-                continue
-            
-            for block in valid_blocks:
-                block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
-                
-                if block_center[2] < 150: 
-                    print("--------------------- start a block:No.",self.block_number_counter,"---------------------------")
-                    print("block_depth", block_center[2])
-
-                    if block_center[0] >= 0 or block_center[1] >= 0:
-                        print("=========== Small ",block_center," =============")
-                        if block.stack == False:
-                            block_center[2] = 25
-                        self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False, isStack = block.stack)
-                        time.sleep(0.2)
-                        if self.rxarm.get_gripper_position() > 0.02:
-                            print("Actually it is a big block")
-                            if self.big_counter >= 3:
-                                self.auto_place(target_pos=[stack3_x,stack3_y,stack3_z],target_orientation = 0,isbig=True,save_time=True)
-                                stack3_count += 1
-                                self.block_number_counter += 1
-                                stack3_z += 38
-                            else:
-                                self.auto_place(target_pos=[self.big_x,self.big_y,self.big_z],target_orientation = 0,isbig=True,save_time=True)
-                                self.big_counter += 1
-                                self.block_number_counter += 1
-                                self.big_z += 38
-                        if self.small_counter >= 3:
-                            self.auto_place(target_pos=[stack3_x,stack3_y,stack3_z],target_orientation = 0,isbig=False,save_time=True)
-                            stack3_count += 1
-                            self.block_number_counter += 1
-                            stack3_z += 25
-                        else:
-                            # compute the place position   
-                            self.auto_place(target_pos=[self.small_x,self.small_y,self.small_z],target_orientation = 0,isbig=False,save_time=True)
-                            self.small_counter += 1
-                            self.block_number_counter += 1
-                            self.small_z += 25
-
-                    time.sleep(0.2)
-                    print("--------------------- end a block ---------------------------")
-                else:
-                    print("This is April Tag!")
-            
-            self.initialize_rxarm()
-            time.sleep(0.5)
-            self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
-                                accel_time=0.5,
-                                blocking=True)
-        print("##################### Pick 'n stack finished #####################")  
-
 
     # Event 2 :Pick'n stack!
     def pick_n_stack(self):
@@ -1537,15 +1235,15 @@ class StateMachine():
 
         while True:
             # Detect blocks in the plane
-            self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary[2:4])
+            self.detection.run(only_blocks = True, boundary = self.camera.boundary[2:4])
             time.sleep(1)
 
-            while self.camera.blocks == None:
+            while not self.detection.blocks:
                 print("There is no blocks in the workspace!!")
                 time.sleep(1)
             
             valid_blocks = []
-            for block in self.camera.blocks:
+            for block in self.detection.blocks:
                 if block.type == "small" or block.type == "big":
                     valid_blocks.append(block)
 
@@ -1570,14 +1268,12 @@ class StateMachine():
 
             if has_stack:
                 for block in valid_blocks:
-                    self.block_center, self.block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation
-
                     if block.stack == True:
-                        self.block_center[2] = block.depth
+                        block.depth = block.depth
                     elif block.type == "big":
-                        self.block_center[2] = 38
+                        block.depth = 38
                     else:
-                        self.block_center[2] = 25
+                        block.depth = 25
                         
                     if self.small_blocks_count >= 3:
                         self.task2_pick_and_put_blocks(block)
@@ -1589,7 +1285,7 @@ class StateMachine():
                         if block.stack:
                             # self.small_blocks_count < 3 and block.type == "small"
                             print("============= Break Stack ===============")
-                            self.auto_pick(target_pos=self.block_center,block_ori = self.block_orientation,isbig=False, isStack=block.stack,saveTime=False)
+                            self.auto_pick(target_pos=self.block.world_xyz,block_ori = self.block.orientation ,isbig=False, isStack=block.stack,saveTime=False)
 
                             time.sleep(0.2)
                             current_position = self.compute_ee_world_pos()
@@ -1607,12 +1303,12 @@ class StateMachine():
             
             if has_big:
                 for block in valid_blocks:
-                    self.block_center, self.block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation
+                    self.block.world_xyz, self.block.orientation  = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation
 
                     if block.type == "big":
-                        self.block_center[2] = 38
+                        block.depth = 38
                     else:
-                        self.block_center[2] = 25
+                        block.depth = 25
                     
                     if block.type == "big":
                         self.task2_pick_and_put_blocks(block, throw=True)
@@ -1627,12 +1323,12 @@ class StateMachine():
                 continue
             
             for block in valid_blocks:
-                self.block_center, self.block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
+                self.block.world_xyz, self.block.orientation  = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
                 
                 if block.type == "big":
-                    self.block_center[2] = 38
+                    block.depth = 38
                 else:
-                    self.block_center[2] = 25
+                    block.depth = 25
 
                 self.task2_pick_and_put_blocks(block, throw=False)
 
@@ -1645,15 +1341,13 @@ class StateMachine():
                                 blocking=True)
         print("##################### Pick 'n stack finished #####################") 
 
-
-
     def task2_pick_and_put_blocks(self, block, throw = False)-> bool:
         if block.type == "big":
             isbig = True
         else:
             isbig = False
 
-        self.auto_pick(target_pos=self.block_center,block_ori = self.block_orientation,isbig=isbig,saveTime=False)
+        self.auto_pick(target_pos=block.world_xyz,block_ori = block.orientation, isbig=isbig, saveTime=False)
         time.sleep(0.2)
         
         if self.rxarm.get_gripper_position() < 0.02 and block.type == "big":
@@ -1692,12 +1386,8 @@ class StateMachine():
         time.sleep(0.2)
         print("=============Finish Stacking a "+ block.type + "block===============")
 
-
-
+    # Event 3 :Line 'em up!
     def line_em_up(self):
-        """!
-        @brief      task3
-        """
         self.current_state = "line_em_up"
         self.next_state = "idle"
         print("##################### Line 'em up Start #####################")
@@ -1725,11 +1415,8 @@ class StateMachine():
                 break
            
             self.sky_walker(camera_clean = True)
-            self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), 
-                                                          self.camera.DepthFrameRaw,
-                                                          boundary=self.camera.task3boundary,
-                                                          only_blocks=True)
-            sorted_blocks = sorted(self.camera.blocks, key=lambda x: color_order.get(x.color, len(color_order)))
+            self.detection.run(only_blocks = False, boundary = self.camera.boundary[8:10])
+            sorted_blocks = sorted(self.detection.blocks, key=lambda x: color_order.get(x.color, len(color_order)))
 
             if sorted_blocks == []:
                 print("--------------------There is no more blocks---------------------")
@@ -1737,19 +1424,17 @@ class StateMachine():
                 continue
 
             for block in sorted_blocks:
-                block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])), block.orientation
-               
                 if block.type == "big":
-                    block_center[2] = 38
+                    block.depth = 38
                     isbig = True
                 else:
-                    block_center[2] = 25
+                    block.depth = 25
                     isbig = False
                 if block.stack == True:
-                    block_center[2] = block.depth
+                    block.depth = block.depth
 
-                self.auto_pick(target_pos=block_center, depth= block.depth,
-                                block_ori = block_orientation,
+                self.auto_pick(target_pos=block.world_xyz, depth= block.depth,
+                                block_ori = block.orientation ,
                                 isbig=isbig, isStack=block.stack, saveTime=False)
                 # time.sleep(0.5)
                 self.sky_walker()
@@ -1766,46 +1451,36 @@ class StateMachine():
                         self.sky_walker()
                         # time.sleep(0.5)
 
-
                     else:
                         print("----------------------We fuck up, something wrong---------------------")
                         self.rxarm.gripper.release()
                         time.sleep(0.5)
                         self.sky_walker()
                         time.sleep(0.5)
-
                         # detect again
                         break
                 else:
                     # Small block
                     if not color_line_small[block.color]:
                         target_pos = color_place_small[block.color]
-
                         self.auto_place(target_pos= target_pos, target_orientation = 0,isbig = False, save_time=False, vertical = True)
                         color_line_small[block.color] = True
                         self.sky_walker()
                         time.sleep(0.5)
-
-
                     else:
                         print("----------------------We fuck up, something  wrong---------------------")
                         self.rxarm.gripper.release()
                         time.sleep(0.5)
                         self.sky_walker()
                         time.sleep(0.5)
-
-
                         # detect again
                         break
-
         self.initialize_rxarm()
         time.sleep(2)
         self.rxarm.arm.go_to_sleep_pose(moving_time = 1.5,
                             accel_time=0.5,
                             blocking=True)
         print("##################### Line 'em up Complete #####################")
-
-
 
     # Event 4:Stack 'em high!
     def stack_em_high(self):
@@ -1821,25 +1496,18 @@ class StateMachine():
         while True:
             self.sky_walker(camera_clean=True)
             time.sleep(1)
-            self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), 
-                                                          self.camera.DepthFrameRaw,
-                                                          boundary=self.camera.boundary[0:2],
-                                                          only_blocks=True)
+            self.detection.run(boundary=self.camera.boundary[0:2], only_blocks=True)
             time.sleep(0.1)
-            
             isStack = False
-            
-            for block in self.camera.blocks:
-                block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
-
+            for block in self.detection.blocks:
                 if block.stack:
                     isStack = True
-                    block_center[2] = block.depth
+                    block.depth = block.depth
                     # if it's stack 2 high, place the top one first
-                    print("=========== Remove a Stack block Start ",block_center," =============")
+                    print("=========== Remove a Stack block Start ",block.world_xyz," =============")
 
                     if block.type == 'big':
-                        self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=True,isStack=True,depth=block.depth)
+                        self.auto_pick(target_pos=block.world_xyz,block_ori = block.orientation ,isbig=True,isStack=True,depth=block.depth)
                         if self.rxarm.get_gripper_position() <= 0.02:
                             print("Actually it is a Small block")
                             self.sky_walker()
@@ -1856,7 +1524,7 @@ class StateMachine():
                             big_counter1 += 1
                             x_big +=65
                     else:
-                        self.auto_pick(target_pos=block_center,block_ori = block_orientation,isbig=False,isStack=True,depth=block.depth)
+                        self.auto_pick(target_pos=block.world_xyz,block_ori = block.orientation ,isbig=False,isStack=True,depth=block.depth)
                         time.sleep(0.2)
                         if self.rxarm.get_gripper_position() >= 0.02:
                             print("Actually it is a Big block")
@@ -1880,24 +1548,20 @@ class StateMachine():
                 break              
         print("---------------------- Clear Stage1 Complete ---------------------")
 
-
         print("---------------------- Detect Stage Start ---------------------")
         # Detect blocks in the plane
         while True:
             time.sleep(0.2)
             self.sky_walker(camera_clean=True)
             time.sleep(1.5)
-            self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), 
-                                                          self.camera.DepthFrameRaw,
-                                                          boundary=self.camera.boundary[0:2],
-                                                          only_blocks=True)
+            self.detection.run(boundary=self.camera.boundary[0:2], only_blocks=True)
             time.sleep(0.1)
             
             # Define a custom order for colors
             color_order = {"red": 0, "orange": 1, "yellow": 2, "green": 3, "blue": 4, "purple": 5, None:6}
 
             # Sort the list of blocks by color
-            blocks = self.camera.blocks
+            blocks = self.detection.blocks
             sorted_blocks = sorted(blocks, key=lambda x: color_order.get(x.color, len(color_order)))
             color_counter = {"red": 0, "orange": 0, "yellow": 0, "green": 0, "blue": 0, "purple": 0}
 
@@ -1913,22 +1577,19 @@ class StateMachine():
 
         print("---------------------- Detect Stage Complete ---------------------")
         
-        
         print("---------------------- stack Stage Start ---------------------")
         big_counter2,small_counter2 = 0,0
         z_big, z_small = 0,0
         for block in sorted_blocks:
-            block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation 
- 
             if block.type == "small":
                 print("================ Small Block No.",small_counter2," ",
                     block.color,"=========================")
-                block_center_copy = list(block_center)
-                block_center_copy[2] = 20
+                block.world_xyz_copy = list(block.world_xyz)
+                block.world_xyz_copy[2] = 20
                 vertical_pick = False
-                if block_center_copy[1] > -20 and block_center_copy[1] < 25:
+                if block.world_xyz_copy[1] > -20 and block.world_xyz_copy[1] < 25:
                     vertical_pick = True
-                self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=False,vertical=vertical_pick)
+                self.auto_pick(target_pos=block.world_xyz_copy,block_ori = block.orientation ,isbig=False,vertical=vertical_pick)
                 self.sky_walker()
                 time.sleep(0.2)
                 if self.rxarm.get_gripper_position() >= 0.02:
@@ -1948,9 +1609,9 @@ class StateMachine():
             elif block.type == "big":
                 print("================ Big Block No.",big_counter2," ",
                     block.color,"=========================")
-                block_center_copy = list(block_center)
-                block_center_copy[2] = 35
-                self.auto_pick(target_pos=block_center_copy,block_ori = block_orientation,isbig=True)
+                block.world_xyz_copy = list(block.world_xyz)
+                block.world_xyz_copy[2] = 35
+                self.auto_pick(target_pos=block.world_xyz_copy,block_ori = block.orientation ,isbig=True)
                 time.sleep(0.3)
                 self.sky_walker()
                 time.sleep(0.2)
@@ -1976,12 +1637,6 @@ class StateMachine():
                             accel_time=0.5,
                             blocking=True)
         print("##################### Stack 'em high Complete #####################")
-        pass
-    
-
-
-
-
     
     # Event 5:To the sky!
     def to_the_sky(self):
@@ -1989,23 +1644,22 @@ class StateMachine():
         self.next_state = "idle"
         print("##################### To the Sky #####################")
         # Detect blocks in the plane
-        self.camera.blocks = detectBlocksUsingCluster(self.camera.VideoFrame.copy(), self.camera.DepthFrameRaw,boundary=self.camera.boundary[2:4])
+        self.detection.run(boundary=self.camera.boundary[2:4])
         time.sleep(1.5)
         self.initialize_rxarm()
         time.sleep(2)
 
-        while self.camera.blocks == None:
+        while not self.detection.blocks:
             print("There is no blocks in the workspace!!")
             time.sleep(1)
  
         block_counter = 1
         y_offset = 0
         x_offset = 0
-        for block in self.camera.blocks:
+        for block in self.detection.blocks:
             print("============ Start Block NO.",block_counter," =================")
-            block_center, block_orientation = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0])),block.orientation
-            block_center[2] = 30
-            self.auto_pick(target_pos=block_center,block_ori = block_orientation)
+            block.depth = 30
+            self.auto_pick(target_pos=block.world_xyz, block_ori = block.orientation )
 
             # if pick nothing, continue
             if self.rxarm.get_gripper_position() < 0.019:
@@ -2062,7 +1716,6 @@ class StateMachine():
 
             print("============ Coomplet Block NO.",block_counter," =================")
             block_counter = block_counter + 1
-
        
         self.initialize_rxarm()
         time.sleep(2)
@@ -2070,7 +1723,6 @@ class StateMachine():
                             accel_time=0.5,
                             blocking=True)
         print("##################### To the sky Never Ends #####################")
-        pass
 
 
 class StateMachineThread(QThread):
