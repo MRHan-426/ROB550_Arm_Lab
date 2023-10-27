@@ -57,6 +57,17 @@ class detection:
 
 
     def run(self, only_blocks = True, boundary = None, lower = 850, upper = 1100):
+        """
+        @brief Run the block detection process.
+        @param only_blocks: If True, only detect blocks.
+        @param boundary: A list containing boundary coordinates.
+                            If provided, block detection will be limited within this boundary.
+        @param lower: Lower threshold for height filter.
+                        Defaults to 850.
+        @param upper: Upper threshold for height filter.
+                        Defaults to 1100.
+        @return None
+        """
         self._reset()
         self.only_blocks = only_blocks
         self.lower = lower
