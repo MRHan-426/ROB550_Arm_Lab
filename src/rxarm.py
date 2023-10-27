@@ -245,8 +245,6 @@ class RXArm(InterbotixManipulatorXS):
         return self.dh_params
 
 
-
-
 class RXArmThread(QThread):
     """!
     @brief      This class describes a RXArm thread.
@@ -265,7 +263,6 @@ class RXArmThread(QThread):
         QThread.__init__(self, parent=parent)
         self.rxarm = rxarm
         self.node = rclpy.create_node('rxarm_thread')
-        self.JB_replay = 0
 
         # # pid modification
         # joint_names = self.rxarm.joint_names
@@ -281,19 +278,8 @@ class RXArmThread(QThread):
             self.callback,
             10
         )
-        self.subscription  # prevent unused variable warning
 
-        self.JB_subscription = self.node.create_subscription(
-            Int32,
-            '/JB_replay',
-            self.JB_callback,
-            10
-        )
-        self.JB_subscription  # prevent unused variable warning
         rclpy.spin_once(self.node, timeout_sec = 0.5)
-
-    def JB_callback(self, data):
-        self.JB_replay = data.data
 
     def callback(self, data):
         self.rxarm.position_fb = np.asarray(data.position)[0:5]
