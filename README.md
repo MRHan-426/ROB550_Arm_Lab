@@ -15,7 +15,7 @@ The team members include: Ziqi(Jackie) Han, Siyuan(Lynx) Yin, Hongjiao(Oliver) Q
 </p>
 
 <p align="center">
-  <img src="https://github.com/MRHan-426/ROB550/blob/main/doc/result.png" alt="image" width="66%" height="auto" />
+  <img src="https://github.com/MRHan-426/ROB550/blob/main/doc/block_detect_result.png" alt="image" width="66%" height="auto" />
 </p>
 
 <p align="center">
