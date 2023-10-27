@@ -19,7 +19,7 @@ The team members include: Ziqi(Jackie) Han, Siyuan(Lynx) Yin, Hongjiao(Oliver) Q
 </p>
 
 <p align="center">
-  <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/detect_algorithm.png" alt="image" width="66%" height="auto" />
+  <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/detect_algorithm.png" alt="image" width="30%" height="auto" />
 </p>
 
 ## 2. Robot Control
