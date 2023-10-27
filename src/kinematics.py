@@ -356,11 +356,18 @@ def IK_geometric(pose,  block_ori=None, isVertical_Pick=False):
     return True, [theta1,theta2,theta3,theta4,theta5]
     pass
 
-
 def plot_joint_angles(file_path):
-    """!
     """
-    x,y1,y2,y3,y4,y5 = [],[],[],[],[],[]
+    @brief Plot joint angles over time from a CSV file.
+
+    This function reads joint angle data from a CSV file and plots the joint angles
+    for different joints over time.
+
+    @param file_path: The path to the CSV file containing joint angle data.
+
+    @return None
+    """
+    x, y1, y2, y3, y4, y5 = [], [], [], [], [], []
 
     with open(file_path, mode='r', newline='') as file:
         reader = csv.reader(file)
@@ -371,19 +378,20 @@ def plot_joint_angles(file_path):
             y3.append(float(row[3]))
             y4.append(float(row[4]))
             y5.append(float(row[5]))
-            
-    fig,ax = plt.subplots()
-    ax.plot(x, y1,label='Joint1')
-    ax.plot(x, y2,label='Joint2')
-    ax.plot(x, y3,label='Joint3')
-    ax.plot(x, y4,label='Joint4')
-    ax.plot(x, y5,label='Joint5')
+
+    fig, ax = plt.subplots()
+    ax.plot(x, y1, label='Joint1')
+    ax.plot(x, y2, label='Joint2')
+    ax.plot(x, y3, label='Joint3')
+    ax.plot(x, y4, label='Joint4')
+    ax.plot(x, y5, label='Joint5')
     ax.legend()
     ax.set_xlabel('Time')
     ax.set_ylabel('Joint Angle (radians)')
     ax.set_title('Joint Angles Over Time for 1 Cycle')
     plt.grid(True)
     plt.show()
+
 
 # For test of Forward Kinematics
 if __name__ == '__main__':
