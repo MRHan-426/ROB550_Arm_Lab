@@ -17,6 +17,16 @@ class block:
 
     # detect whether a point is in a square
     def inArea(self, point):
+        """
+        @brief Check if a point is within a certain area around the block's center.
+
+        This method checks if a given point (represented as a tuple of width and height) 
+        is within a specified circular area around the block's center.
+
+        @param point: A tuple representing the point's coordinates (width, height).
+
+        @return bool: True if the point is within the specified area, False otherwise.
+        """
         width, height = point
         print("===========================================")
         print("point:", (height, self.center[0]))
@@ -58,15 +68,15 @@ class detection:
 
     def run(self, only_blocks = True, boundary = None, lower = 850, upper = 1100):
         """
-        @brief Run the block detection process.
-        @param only_blocks: If True, only detect blocks.
-        @param boundary: A list containing boundary coordinates.
+        @brief      Run the block detection process.
+        @param      only_blocks: If True, only detect blocks.
+        @param      boundary: A list containing boundary coordinates.
                             If provided, block detection will be limited within this boundary.
-        @param lower: Lower threshold for height filter.
+        @param      lower: Lower threshold for height filter.
                         Defaults to 850.
-        @param upper: Upper threshold for height filter.
+        @param      upper: Upper threshold for height filter.
                         Defaults to 1100.
-        @return None
+        @return     None
         """
         self._reset()
         self.only_blocks = only_blocks
@@ -109,6 +119,14 @@ class detection:
 
 
     def _reset(self):
+        """
+        @brief Reset the internal state of the block detection module.
+
+        This method clears the list of detected blocks, copies the RGB image from the camera, 
+        and copies the raw depth data from the camera.
+
+        @return None
+        """
         self.blocks = []
         self.rgb_img = self.camera.VideoFrame.copy()
         self.depth_raw = self.camera.DepthFrameRaw.copy()
@@ -352,6 +370,18 @@ class detection:
 
 
     def _detect_color(self, input_vector, useHsv = False):
+        """
+        @brief Detect the closest color to the input vector.
+
+        This method calculates the closest color to the input vector based on the Euclidean
+        distance between the input vector and reference color vectors.
+
+        @param input_vector: The input color vector to be compared.
+        @param useHsv: If True, also use HSV color space for distance calculation.
+                   Defaults to False.
+
+        @return str: The name of the closest color.
+        """
         if useHsv:
             distances = np.linalg.norm(self.ref_vector_hsv - input_vector, axis=1)
         else:
@@ -361,6 +391,14 @@ class detection:
 
         
     def _calculate_block_world_coordinate(self):
+        """
+        @brief Calculate the world coordinates of detected blocks.
+
+        This method calculates the world coordinates (x, y, z) of each detected block
+        based on its center position in the image and its depth information.
+
+        @return None
+        """
         for block in self.blocks:
             x_y = self.camera.transformFromImageToWorldFrame((block.center[1], block.center[0]))[:2]
             block.world_xyz = np.array((x_y[0], x_y[1], block.depth))
