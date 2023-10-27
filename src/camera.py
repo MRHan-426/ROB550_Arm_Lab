@@ -92,10 +92,7 @@ class Camera():
         self.tag_locations_2D = [[400, 550], [900, 550], [900, 250], [400, 250]]
 
         """ block info """
-        self.detect_blocks = False
-        self.blocks = []
         self.block_contours = np.array([])
-        self.block_detections = np.array([])
 
     def processVideoFrame(self):
         """!
@@ -325,8 +322,18 @@ class Camera():
         
         self.TagImageFrame = modified_image
 
-
     def calibrateFromAprilTag(self, msg):
+        """
+        @brief Calibrate the camera using AprilTags.
+
+        This method calibrates the camera by finding the extrinsic matrix using AprilTags
+        detected in the image. It computes the extrinsic matrix, prints it, and saves it
+        to a file.
+
+        @param msg: AprilTag detection message.
+        
+        @return None
+        """
         self.tagsNotChange = []
         image_points = np.array(self.tagsCenter).astype(np.float32)
         world_points = np.array(self.tag_locations_3D).astype(np.float32)
@@ -352,8 +359,7 @@ class Camera():
 
         filename = "../config/extrinsic.txt"
         np.savetxt(filename, self.extrinsic_matrix, fmt='%10f', delimiter=', ')
-
-            
+        
     def transformFromImageToWorldFrame(self, pos: tuple) -> list:
         """!
         @brief      transform From Image To WorldFrame
@@ -361,17 +367,13 @@ class Camera():
         @param      pos: x, y z coordinate in image frame
                     pos[0]:x, pos[1]:y
         """
-        
         z = self.DepthFrameRaw[int(pos[1])][int(pos[0])]
         if self.DepthFrameRaw.any() != 0:
-            
             if self.cameraCalibrated == True:
                 T = self.extrinsic_matrix[:,3]
                 R = self.extrinsic_matrix[:,0:3]
-
                 K2 = self.extrinsic_matrix
                 K1 = self.intrinsic_matrix
-
                 P_w =  np.linalg.inv(K2) @ np.vstack((z * np.linalg.inv(K1) @ np.array([[pos[0]],[pos[1]],[1]]), 1))
             
             else: # use default extrinsic parameters
@@ -379,7 +381,6 @@ class Camera():
                 R = np.array([[0.999, 0.0094, -0.0426],
                             [0.0, -0.9763,  -0.2164],
                             [-0.0436, 0.2162, -0.9754]])
-
                 u = pos[0]
                 v = pos[1]
                 fx, fy = self.intrinsic_matrix[0, 0], self.intrinsic_matrix[1, 1]
@@ -450,26 +451,6 @@ class JBCalibrateListener(Node):
             self.camera.calibrateFromAprilTag(msg)
 
 
-class JBDetectListener(Node):
-    def __init__(self, topic, camera):
-        super().__init__('JB_Detect_listener')
-        self.topic = topic
-        self.detect_sub = self.create_subscription(
-            Int32,
-            topic,
-            self.callback,
-            10
-        )
-        self.camera = camera
-
-    def callback(self, msg):
-        if msg.data == 1:
-            self.camera.detect_blocks = True
-        else:
-            self.camera.detect_blocks = False
-
-
-
 class CameraInfoListener(Node):
     def __init__(self, topic, camera):
         super().__init__('camera_info_listener')  
@@ -515,7 +496,6 @@ class VideoThread(QThread):
         camera_info_topic = "/camera/color/camera_info"
         tag_detection_topic = "/detections"
         JB_calibrate_topic = "/JB_calibrate"
-        JB_Detect_topic = "/JB_Detect"
 
         image_listener = ImageListener(image_topic, self.camera)
         depth_listener = DepthListener(depth_topic, self.camera)
@@ -525,8 +505,6 @@ class VideoThread(QThread):
                                                       self.camera)
         JB_calibrate_listener = JBCalibrateListener(JB_calibrate_topic,
                                                       self.camera)  
-        JB_Detect_listener = JBDetectListener(JB_Detect_topic,
-                                                      self.camera)  
 
         self.executor = SingleThreadedExecutor()
         self.executor.add_node(image_listener)
@@ -534,7 +512,6 @@ class VideoThread(QThread):
         self.executor.add_node(camera_info_listener)
         self.executor.add_node(tag_detection_listener)
         self.executor.add_node(JB_calibrate_listener)
-        self.executor.add_node(JB_Detect_listener)
 
 
     def run(self):
