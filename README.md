@@ -1,5 +1,8 @@
 #  Robot Arm v.s. Various Blocks
 
+<p align="center">
+  <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/stacking.gif" alt="gif">
+</p>
      
 ![Arm Lab](https://img.shields.io/badge/ROB550-ArmLab-orange)
 ![Primary language](https://img.shields.io/github/languages/top/MRHan-426/ROB550_Arm_Lab)
@@ -10,6 +13,9 @@ This is Section2 Team 9's arm lab project git repository for ROB550: Robotic Sys
 The team members include: Ziqi(Jackie) Han, Siyuan(Lynx) Yin, Hongjiao(Oliver) Qiang.
 
 ## 1. Block Detection
+
+Our implemented block detector exhibits robustness in the detection of the position, color, orientation of many kinds of blocks, including cuboid, arch, triangle, semi-circle, cylinder. The procedural steps of our algorithm primarily encompass initial object detection, Contour optimization and color recognition via clustering, and object classification.
+
 <p align="center">
   <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/cluster_1.png" alt="image" width="66%" height="auto" />
 </p>
