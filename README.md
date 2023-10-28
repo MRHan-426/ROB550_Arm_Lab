@@ -40,6 +40,7 @@ Our implemented block detector exhibits robustness in the detection of the posit
 </p>
 
 ## 2. Robot Control
+We implemented the forward and inverse kinematics of a 5-degree-of-freedom robotic arm using both the DH method and the PoX method. We also employed interpolation techniques for path planning. Based on this, we achieved tasks such as grasping, placing, stacking, and arranging objects.
 <p align="center">
   <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/robot_control.png" alt="image" width="66%" height="auto" />
 </p>
