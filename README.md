@@ -14,18 +14,29 @@ The team members include: Ziqi(Jackie) Han, Siyuan(Lynx) Yin, Hongjiao(Oliver) Q
 
 ## 1. Block Detection
 
-Our implemented block detector exhibits robustness in the detection of the position, color, orientation of many kinds of blocks, including cuboid, arch, triangle, semi-circle, cylinder. The procedural steps of our algorithm primarily encompass initial object detection, Contour optimization and color recognition via clustering, and object classification.
+Our implemented block detector exhibits robustness in the detection of the position, color, orientation of many kinds of blocks, including cuboid, arch, triangle, semi-circle, cylinder. The procedural steps of our algorithm primarily encompass initial object detection, Contour optimization via clustering, color recognition, and object classification.
 
++ Contour optimization via clustering
 <p align="center">
   <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/cluster_1.png" alt="image" width="66%" height="auto" />
 </p>
-
 <p align="center">
-  <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/block_detect_result.png" alt="image" width="66%" height="auto" />
+  <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/cluster_4.png" alt="image" width="66%" height="auto" />
 </p>
 
++ Color recognition
 <p align="center">
-  <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/detect_algorithm.png" alt="image" width="30%" height="auto" />
+  <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/color_detection.png" alt="image" width="66%" height="auto" />
+</p>
+
++ Object classification
+<p align="center">
+  <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/edges_detect.png" alt="image" width="66%" height="auto" />
+</p>
+
++ Result
+<p align="center">
+  <img src="https://github.com/MRHan-426/ROB550_Arm_Lab/blob/main/doc/block_detect_result.png" alt="image" width="66%" height="auto" />
 </p>
 
 ## 2. Robot Control
